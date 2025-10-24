@@ -1,0 +1,1362 @@
+SELECT
+    'agsolutic_fichafamiliaroriente' AS origen_db,
+    n.id AS id_novedad,
+    u.microterritorio as microterritorio_,
+    n.direccion,
+    n.latitud,
+    n.longitud,
+    n.estadocasa ,
+    n.observacion ,
+    n.fecha ,
+    n.responsable_id ,
+    r.tipodoc ,
+    r.numero ,
+    r.nombres ,
+    r.celular ,
+    r.profesion 
+FROM
+    agsolutic_fichafamiliaroriente.visitasnegadas n -- Se especifica la base de datos 'aps2025'
+JOIN
+    agsolutic_fichafamiliaroriente.ubicaciones u ON n.ubicacion_id = u.id  
+JOIN  
+	agsolutic_fichafamiliaroriente.responsables r ON n.responsable_id = r.id
+
+	UNION
+	
+SELECT
+    'agsolutic_fichafamiliaroccidente' AS origen_db, -- Columna para identificar la base de datos de origen
+    n.id AS id_novedad,
+    u.microterritorio as microterritorio_,
+    n.direccion,
+    n.latitud,
+    n.longitud,
+    n.estadocasa ,
+    n.observacion ,
+    n.fecha ,
+    n.responsable_id ,
+    r.tipodoc ,
+    r.numero ,
+    r.nombres ,
+    r.celular ,
+    r.profesion 
+FROM
+    agsolutic_fichafamiliaroccidente.visitasnegadas n -- Se especifica la base de datos 'aps2025'
+JOIN
+    agsolutic_fichafamiliaroccidente.ubicaciones u ON n.ubicacion_id = u.id  
+JOIN  
+	agsolutic_fichafamiliaroccidente.responsables r ON n.responsable_id = r.id
+	
+UNION
+	
+SELECT
+    'agsolutic_aps2024' AS origen_db, -- Columna para identificar la base de datos de origen
+    n.id AS id_novedad,
+    u.microterritorio as microterritorio_,
+    n.direccion,
+    n.latitud,
+    n.longitud,
+    n.estadocasa ,
+    n.observacion ,
+    n.fecha ,
+    n.responsable_id ,
+    r.tipodoc ,
+    r.numero ,
+    r.nombres ,
+    r.celular ,
+    r.profesion 
+FROM
+    agsolutic_aps2024.visitasnegadas n -- Se especifica la base de datos 'aps2025'
+JOIN
+    agsolutic_aps2024.ubicaciones u ON n.ubicacion_id = u.id  
+JOIN  
+	agsolutic_aps2024.responsables r ON n.responsable_id = r.id
+	
+UNION 
+
+SELECT
+    'agsolutic_fichafamiliarsur' AS origen_db,
+    n.id AS id_novedad,
+    u.microterritorio as microterritorio_,
+    n.direccion,
+    n.latitud,
+    n.longitud,
+    n.estadocasa ,
+    n.observacion ,
+    n.fecha ,
+    n.responsable_id ,
+    r.tipodoc ,
+    r.numero ,
+    r.nombres ,
+    r.celular ,
+    r.profesion 
+FROM
+    agsolutic_fichafamiliarsur.visitasnegadas n -- Se especifica la base de datos 'aps2025'
+JOIN
+    agsolutic_fichafamiliarsur.ubicaciones u ON n.ubicacion_id = u.id  
+JOIN  
+	agsolutic_fichafamiliarsur.responsables r ON n.responsable_id = r.id
+	
+UNION
+
+SELECT
+    'agsolutic_fichafamiliar' AS origen_db,
+     u.microterritorio as microterritorio_,
+    n.direccion,
+    n.latitud,
+    n.longitud,
+    n.estadocasa ,
+    n.observacion ,
+    n.fecha ,
+    n.responsable_id ,
+    r.tipodoc ,
+    r.numero ,
+    r.nombres ,
+    r.celular ,
+    r.profesion 
+FROM
+    agsolutic_fichafamiliar.visitasnegadas n -- Se especifica la base de datos 'aps2025'
+JOIN
+    agsolutic_fichafamiliar.ubicaciones u ON n.ubicacion_id = u.id  
+JOIN  
+	agsolutic_fichafamiliar.responsables r ON n.responsable_id = r.id
+
+
+
+--------------------------
+
+SELECT
+    'agsolutic_fichafamiliaroriente' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+   	sa.aceptaformulario ,
+   	u.id ,
+   	f.apellidos,
+   	f.numeropersonas ,
+   	r.nombres,
+   	sa.fecha,
+   	o.familiograma ,
+   	f.apgarFuncionalidad ,
+   	f.calculoapgar ,
+   	f.calculozarit,
+   	o.resultadoEcomapa  ,
+   	o.resultadoFamiliograma , 
+   	o.dirfamiliograma,
+   	o.dirplancuidado 
+FROM
+    agsolutic_fichafamiliaroriente.familias f -- Se especifica la base de datos 'agsolutic_fichafamiliaroccidente'
+JOIN
+    agsolutic_fichafamiliaroriente.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliaroriente.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliaroriente.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliaroriente.responsables r ON sa.responsable_id = r.id
+
+	UNION
+	
+SELECT
+    'agsolutic_fichafamiliaroccidente' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+   	sa.aceptaformulario ,
+   	u.id ,
+   	f.apellidos,
+   	f.numeropersonas ,
+   	r.nombres,
+   	sa.fecha,
+   	o.familiograma ,
+   	f.apgarFuncionalidad ,
+   	f.calculoapgar ,
+   	f.calculozarit,
+   	o.resultadoEcomapa  ,
+   	o.resultadoFamiliograma , 
+   	o.dirfamiliograma,
+   	o.dirplancuidado 
+FROM
+    agsolutic_fichafamiliaroccidente.familias f -- Se especifica la base de datos 'agsolutic_fichafamiliaroccidente'
+JOIN
+    agsolutic_fichafamiliaroccidente.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliaroccidente.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliaroccidente.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliaroccidente.responsables r ON sa.responsable_id = r.id
+	
+UNION
+	
+SELECT
+    'agsolutic_aps2024' AS origen_db, -- Columna para identificar la base de datos de origen
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+   	sa.aceptaformulario ,
+   	u.id ,
+   	f.apellidos,
+   	f.numeropersonas ,
+   	r.nombres,
+   	sa.fecha,
+   	o.familiograma ,
+   	f.apgarFuncionalidad ,
+   	f.calculoapgar ,
+   	f.calculozarit,
+   	o.resultadoEcomapa  ,
+   	o.resultadoFamiliograma , 
+   	o.dirfamiliograma,
+   	o.dirplancuidado 
+FROM
+    agsolutic_aps2024.familias f -- Se especifica la base de datos 'aps2025'
+JOIN
+    agsolutic_aps2024.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_aps2024.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_aps2024.observacions o ON o.familia_id = f.id   
+JOIN  
+	agsolutic_aps2024.responsables r ON sa.responsable_id = r.id
+	
+UNION 
+
+SELECT
+    'agsolutic_fichafamiliarsur' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+   	sa.aceptaformulario ,
+   	u.id ,
+   	f.apellidos,
+   	f.numeropersonas ,
+   	r.nombres,
+   	sa.fecha,
+   	o.familiograma ,
+   	f.apgarFuncionalidad ,
+   	f.calculoapgar ,
+   	f.calculozarit,
+   	o.resultadoEcomapa  ,
+   	o.resultadoFamiliograma , 
+   	o.dirfamiliograma,
+   	o.dirplancuidado  
+FROM
+    agsolutic_fichafamiliarsur.familias f -- Se especifica la base de datos 'apssur'
+JOIN
+    agsolutic_fichafamiliarsur.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliarsur.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliarsur.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliarsur.responsables r ON sa.responsable_id = r.id
+	
+UNION
+
+SELECT
+    'agsolutic_fichafamiliar' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+   	sa.aceptaformulario ,
+   	u.id ,
+   	f.apellidos,
+   	f.numeropersonas ,
+   	r.nombres,
+   	sa.fecha,
+   	o.familiograma ,
+   	f.apgarFuncionalidad ,
+   	f.calculoapgar ,
+   	f.calculozarit,
+   	o.resultadoEcomapa  ,
+   	o.resultadoFamiliograma , 
+   	o.dirfamiliograma,
+   	o.dirplancuidado 
+FROM
+    agsolutic_fichafamiliar.familias f -- Se especifica la base de datos 'apssur'
+JOIN
+    agsolutic_fichafamiliar.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliar.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliar.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliar.responsables r ON sa.responsable_id = r.id
+----------
+
+SELECT
+    'agsolutic_aps2024' AS origen_db, -- Columna para identificar la base de datos de origen
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_aps2024.familias f -- Se especifica la base de datos 'aps2025'
+JOIN
+    agsolutic_aps2024.juventudadultos j ON f.id = j.familia_id
+JOIN
+    agsolutic_aps2024.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_aps2024.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_aps2024.observacions o ON o.familia_id = f.id   
+JOIN  
+	agsolutic_aps2024.responsables r ON sa.responsable_id = r.id
+
+	
+	UNION -- Combina con la siguiente consulta
+
+-- Obtiene miembros adolescencia de la base de datos 'aps2025'
+SELECT
+    'agsolutic_aps2024' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_aps2024.familias f -- Se especifica la base de datos 'aps2025'
+JOIN
+    agsolutic_aps2024.adolescencias j ON f.id = j.familia_id
+JOIN
+    agsolutic_aps2024.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_aps2024.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_aps2024.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_aps2024.responsables r ON sa.responsable_id = r.id
+
+UNION -- Combina con la siguiente consulta
+
+-- Obtiene miembros infantiles de la base de datos 'aps2025'
+SELECT
+    'agsolutic_aps2024' AS origen_db,
+   f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_aps2024.familias f -- Se especifica la base de datos 'apssur'
+JOIN
+    agsolutic_aps2024.infantils j ON f.id = j.familia_id
+JOIN
+    agsolutic_aps2024.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_aps2024.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_aps2024.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_aps2024.responsables r ON sa.responsable_id = r.id
+	
+UNION -- Combina con la siguiente consulta
+
+-- Obtiene miembros primerainfancia de la base de datos 'apssur'
+SELECT
+    'agsolutic_aps2024' AS origen_db,
+   f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_aps2024.familias f -- Se especifica la base de datos 'apssur'
+JOIN
+    agsolutic_aps2024.primerainfancias j ON f.id = j.familia_id
+JOIN
+    agsolutic_aps2024.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_aps2024.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_aps2024.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_aps2024.responsables r ON sa.responsable_id = r.id
+	
+
+UNION -- Combina los resultados de 'apssur' con los de 'apsSur'
+
+-- =================================================================
+-- CONSULTA PARA LA BASE DE DATOS 'agsolutic_fichafamiliarsur'
+-- =================================================================
+
+-- Obtiene miembros jóvenes y adultos de la base de datos 'apsSur'
+SELECT
+    'agsolutic_fichafamiliarsur' AS origen_db, -- Columna para identificar la base de datos de origen
+   f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_fichafamiliarsur.familias f -- Se especifica la base de datos 'apsnorte'
+JOIN
+    agsolutic_fichafamiliarsur.juventudadultos j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliarsur.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliarsur.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliarsur.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliarsur.responsables r ON sa.responsable_id = r.id
+	
+	UNION -- Combina con la siguiente consulta
+
+-- Obtiene miembros adolescencia de la base de datos 'apssur'
+SELECT
+    'agsolutic_fichafamiliarsur' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_fichafamiliarsur.familias f -- Se especifica la base de datos 'apssur'
+JOIN
+    agsolutic_fichafamiliarsur.adolescencias j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliarsur.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliarsur.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliarsur.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliarsur.responsables r ON sa.responsable_id = r.id
+
+UNION -- Combina con la siguiente consulta
+
+-- Obtiene miembros infantiles de la base de datos 'apsnorte'
+SELECT
+    'agsolutic_fichafamiliarsur' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_fichafamiliarsur.familias f -- Se especifica la base de datos 'apsnorte'
+JOIN
+    agsolutic_fichafamiliarsur.infantils j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliarsur.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliarsur.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliarsur.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliarsur.responsables r ON sa.responsable_id = r.id
+
+UNION -- Combina con la siguiente consulta
+
+-- Obtiene miembros primerainfancia de la base de datos 'apssur'
+SELECT
+    'agsolutic_fichafamiliarsur' AS origen_db,
+   f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_fichafamiliarsur.familias f -- Se especifica la base de datos 'apssur'
+JOIN
+    agsolutic_fichafamiliarsur.primerainfancias j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliarsur.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliarsur.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliarsur.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliarsur.responsables r ON sa.responsable_id = r.id
+
+UNION -- Obtiene miembros adolescencia de la base de datos 'agsolutic_fichafamiliaroccidente'
+
+-- Obtiene miembros jóvenes y adultos de la base de datos 'apsnorte'
+-- =================================================================
+-- CONSULTA PARA LA BASE DE DATOS 'agsolutic_fichafamiliaroccidente'
+-- =================================================================
+
+SELECT
+    'agsolutic_fichafamiliaroccidente' AS origen_db, -- Columna para identificar la base de datos de origen
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_fichafamiliaroccidente.familias f -- Se especifica la base de datos 'apsnorte'
+JOIN
+    agsolutic_fichafamiliaroccidente.juventudadultos j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliaroccidente.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliaroccidente.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliarsur.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliarsur.responsables r ON sa.responsable_id = r.id
+	
+	UNION -- Combina con la siguiente consulta
+SELECT
+    'agsolutic_fichafamiliaroccidente' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_fichafamiliaroccidente.familias f -- Se especifica la base de datos 'agsolutic_fichafamiliaroccidente'
+JOIN
+    agsolutic_fichafamiliaroccidente.adolescencias j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliaroccidente.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliaroccidente.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliarsur.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliarsur.responsables r ON sa.responsable_id = r.id
+
+UNION -- Combina con la siguiente consulta
+
+-- Obtiene miembros infantiles de la base de datos 'agsolutic_fichafamiliaroccidente'
+SELECT
+    'agsolutic_fichafamiliaroccidente' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_fichafamiliaroccidente.familias f -- Se especifica la base de datos 'agsolutic_fichafamiliaroccidente'
+JOIN
+    agsolutic_fichafamiliaroccidente.infantils j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliaroccidente.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliaroccidente.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliaroccidente.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliaroccidente.responsables r ON sa.responsable_id = r.id
+	
+UNION -- Combina con la siguiente consulta
+
+-- Obtiene miembros primerainfancia de la base de datos 'agsolutic_fichafamiliaroccidente'
+SELECT
+    'agsolutic_fichafamiliaroccidente' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_fichafamiliaroccidente.familias f -- Se especifica la base de datos 'agsolutic_fichafamiliaroccidente'
+JOIN
+    agsolutic_fichafamiliaroccidente.primerainfancias j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliaroccidente.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliaroccidente.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliaroccidente.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliaroccidente.responsables r ON sa.responsable_id = r.id
+	
+
+UNION -- Combina los resultados de 'agsolutic_fichafamiliar' con los de 'apsnorte'
+
+-- =================================================================
+-- CONSULTA PARA LA BASE DE DATOS 'agsolutic_fichafamiliar'
+-- =================================================================
+
+-- Obtiene miembros jóvenes y adultos de la base de datos 'apsnorte'
+SELECT
+    'agsolutic_fichafamiliar' AS origen_db, -- Columna para identificar la base de datos de origen
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.apartamento ,sa.latitud,sa.longitud, 
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc,
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma,
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs
+FROM
+    agsolutic_fichafamiliar.familias f -- Se especifica la base de datos 'apsnorte'
+JOIN
+    agsolutic_fichafamiliar.juventudadultos j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliar.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliar.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliar.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliar.responsables r ON sa.responsable_id = r.id
+	
+	UNION -- Combina con la siguiente consulta
+
+-- Obtiene miembros adolescencia de la base de datos 'agsolutic_fichafamiliar'
+SELECT
+    'agsolutic_fichafamiliar' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_fichafamiliar.familias f -- Se especifica la base de datos 'agsolutic_fichafamiliaroccidente'
+JOIN
+    agsolutic_fichafamiliar.adolescencias j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliar.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliar.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliar.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliar.responsables r ON sa.responsable_id = r.id
+UNION -- Combina con la siguiente consulta
+
+-- Obtiene miembros infantiles de la base de datos 'apsnorte'
+SELECT
+    'agsolutic_fichafamiliaroccidente' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_fichafamiliar.familias f -- Se especifica la base de datos 'apsnorte'
+JOIN
+    agsolutic_fichafamiliar.infantils j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliar.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliar.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliar.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliar.responsables r ON sa.responsable_id = r.id
+
+UNION -- Combina con la siguiente consulta
+
+-- Obtiene miembros primerainfancia de la base de datos 'agsolutic_fichafamiliaroccidente'
+SELECT
+    'agsolutic_fichafamiliar' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_fichafamiliar.familias f -- Se especifica la base de datos 'agsolutic_fichafamiliaroccidente'
+JOIN
+    agsolutic_fichafamiliar.primerainfancias j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliar.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliar.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliar.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliar.responsables r ON sa.responsable_id = r.id
+	
+	UNION -- Combina los resultados de 'agsolutic_fichafamiliaroriente' con los de 'agsolutic_fichafamiliaroriente_2024'
+
+-- =================================================================
+-- CONSULTA PARA LA BASE DE DATOS 'agsolutic_fichafamiliaroriente'
+-- =================================================================
+
+-- Obtiene miembros jóvenes y adultos de la base de datos 'agsolutic_fichafamiliaroriente_2024'
+SELECT
+    'agsolutic_fichafamiliaroriente' AS origen_db, -- Columna para identificar la base de datos de origen
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_fichafamiliaroriente.familias f -- Se especifica la base de datos 'agsolutic_fichafamiliaroriente_2024'
+JOIN
+    agsolutic_fichafamiliaroriente.juventudadultos j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliaroriente.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliaroriente.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliaroriente.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliaroriente.responsables r ON sa.responsable_id = r.id
+	
+	UNION -- Combina con la siguiente consulta
+
+-- Obtiene miembros adolescencia de la base de datos 'agsolutic_fichafamiliaroccidente'
+SELECT
+    'agsolutic_fichafamiliaroriente' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_fichafamiliaroriente.familias f -- Se especifica la base de datos 'agsolutic_fichafamiliaroccidente'
+JOIN
+    agsolutic_fichafamiliaroriente.adolescencias j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliaroriente.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliaroriente.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliaroriente.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliaroriente.responsables r ON sa.responsable_id = r.id
+
+UNION -- Combina con la siguiente consulta
+
+-- Obtiene miembros infantiles de la base de datos 'agsolutic_fichafamiliaroriente_2024'
+SELECT
+    'agsolutic_fichafamiliaroccidente' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_fichafamiliaroriente.familias f -- Se especifica la base de datos 'agsolutic_fichafamiliaroriente_2024'
+JOIN
+    agsolutic_fichafamiliaroriente.infantils j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliaroriente.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliaroriente.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliaroriente.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliaroriente.responsables r ON sa.responsable_id = r.id
+
+UNION -- Combina con la siguiente consulta
+
+-- Obtiene miembros primerainfancia de la base de datos 'agsolutic_fichafamiliaroccidente'
+SELECT
+    'agsolutic_fichafamiliaroriente' AS origen_db,
+    f.id AS id_familia,
+    f.sociambiental_id,
+    u.microterritorio as microterritorio_,sa.direccion,sa.barriovereda,sa.latitud,sa.longitud,
+    sa.fecha, 
+    sa.apellidosfamilia,
+    j.primerapellido,
+    j.segundoapellido,
+    j.primernombre,
+    j.segundonombre,
+    j.fechanac,
+    j.tipodocumento,
+    j.numerodoc, 
+    j.aseguradora,
+    j.regimen,
+    j.edad,
+    j.sexo,
+    j.condicioncronica,
+    j.canalizacionuno,
+    j.canalizaciondos,
+    j.canalizaciontres,
+    j.observacioncanalizacion,
+    sa.direccion,    
+    sa.latitud,
+    sa.longitud,
+    f.celular,
+    j.telefono,
+    u.*,
+    f.tipofamilia,
+    f.apgarFuncionalidad,
+    o.resultadoEcomapa,
+    o.resultadoFamiliograma, 
+    o.observacion,     
+    o.dirplancuidado,
+    r.nombres,
+    r.ebs 
+FROM
+    agsolutic_fichafamiliaroriente.familias f -- Se especifica la base de datos 'agsolutic_fichafamiliaroccidente'
+JOIN
+    agsolutic_fichafamiliaroriente.primerainfancias j ON f.id = j.familia_id
+JOIN
+    agsolutic_fichafamiliaroriente.sociambientals sa ON f.sociambiental_id = sa.id
+JOIN
+    agsolutic_fichafamiliaroriente.ubicaciones u ON sa.ubicacion_id = u.id
+JOIN 
+	agsolutic_fichafamiliaroriente.observacions o ON o.familia_id = f.id
+JOIN  
+	agsolutic_fichafamiliaroriente.responsables r ON sa.responsable_id = r.id
+	
+
+	
+
+
