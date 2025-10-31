@@ -30,13 +30,14 @@ def main():
     try:
         cursor = connection.cursor()
         # Cargar CV https://docs.google.com/spreadsheets/d/1RqbfsgJc9N-qOJfmveLQTm1GNwwbO-0S/export?format=csv&gid=749204967
-        df = pd.read_csv('cv/0. LISTADO EQUIPOS BASICOS - Distribución 05- sept 2025 (1).csv' , dtype=str ,encoding='latin1')
+        url = 'https://docs.google.com/spreadsheets/d/1RqbfsgJc9N-qOJfmveLQTm1GNwwbO-0S/export?format=xlsx&gid=749204967'
+        df = pd.read_excel(url, engine='openpyxl')  # Ensure `openpyxl` is installed
 
         df_usuarios_nuevos = df[
-            df['CEDULA'].notnull() & (df['CEDULA'] != '')
+            df['N° CEDULA'].notnull() & (df['N° CEDULA'] != '')
             ].copy()
 
-        df_usuarios_nuevos['username'] = df_usuarios_nuevos['CEDULA'].astype(str).str.split('.').str[0]
+        df_usuarios_nuevos['username'] = df_usuarios_nuevos['N° CEDULA'].astype(str).str.split('.').str[0]
         df_usuarios_nuevos['nombre'] = df_usuarios_nuevos['NOMBRE'].astype(str).str.lower()
         df_usuarios_nuevos['password'] = df_usuarios_nuevos['username'].apply(
             lambda x: hashlib.md5(('Cc' + x).encode()).hexdigest())

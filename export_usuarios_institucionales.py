@@ -25,13 +25,13 @@ def main():
     # 11
     'CC',
     # 12
-    '93407260',
+    '79453251',
     # 13
     'DIEGO',
     # 14
     'MORALES',
     # 15
-    'GERENCIA@PASTOSALUDESE.GOV.CO'
+    'webmaster@pastosaludese.gov.co'
     ]
 
     # 0
