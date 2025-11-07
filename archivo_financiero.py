@@ -1,6 +1,8 @@
 from datetime import datetime
 import pandas as pd
 
+from export_aps_124 import limpiar_tildes
+from export_usuarios_institucionales import codificar_formato
 from propiedades_aps124 import PROPIEDADES_TIPO_2
 
 
@@ -40,10 +42,11 @@ def df_tipo_2(tipo_registro, propiedades_tipo_2, nit):
 
     return formato
 
-def convertidor_objeto(row, propiedades):
-    for i, objeto in enumerate(propiedades):
-        if  row == i:
-            return objeto
+def convertidor_objeto(row):
+
+    row_sin_caracteres_especiales = limpiar_tildes(row)
+
+    return row_sin_caracteres_especiales[:300]  # Limitar a 300 caracteres
 
 def df_tipo_3(tipo_registro, inicio_consecutivo, propiedades_tipo_3, df_personas, nit):
     formato = pd.DataFrame([{
@@ -54,15 +57,15 @@ def df_tipo_3(tipo_registro, inicio_consecutivo, propiedades_tipo_3, df_personas
         'tipo_contrato': propiedades_tipo_3[1],
         'numero_contrato': row['numero_contrato'],
         'fecha_inicio_contrato': row['fecha_inicio_contrato'].date(),
-        'fecha_termino_contrato': row['fecha_termino_contrato'].date(),
-        'objeto_contrato': convertidor_objeto(row['tipo_objeto'], propiedades_tipo_3[2]),
-        'valor': f"{row['valor']}.00",
+        'fecha_termino_contrato':  pd.to_datetime(row['fecha_termino_contrato']).strftime('%Y-%m-%d') if pd.notna(row['fecha_termino_contrato']) else '',
+        'objeto_contrato': convertidor_objeto(row['objeto']).upper(),
+        'valor': f"{row['valor_contratado']}.00",
         'contratista_tipo_identificacion': row['contratista_tipo_identificacion'],
         'numero_identificacion': str(row['numero_identificacion']).split('.')[0] if pd.notna(row['numero_identificacion']) else '',
-        'nombre_contratista': str(row['nombre_contratista']).upper() if pd.notna(row['nombre_contratista']) else '',
+        'nombre_contratista': limpiar_tildes(row['nombre_contratista']) if pd.notna(row['nombre_contratista']) and row['nombre_contratista'] != '' else '',
         'tipo_doc_supervisor': row['tipo_doc_supervisor'],
         'numero_supervisor': str(row['numero_supervisor']).split('.')[0] if pd.notna(row['numero_supervisor']) else '',
-        'nombre_supervisor': str(row['nombre_supervisor']).upper() if pd.notna(row['nombre_supervisor']) else '',
+        'nombre_supervisor': limpiar_tildes(row['nombre_supervisor']).upper() if pd.notna(row['nombre_supervisor']) else '',
     } for _, row in df_personas.iterrows()])
 
     valor_rango = inicio_consecutivo + 1
@@ -86,16 +89,75 @@ def df_tipo_4(tipo_registro, df ,nit, inicio_consecutivo):
     return formato
 
 
-def df_tipo_5(param, PROPIEDADES_TIPO_5, inicio_consecutivo):
+def obtenert_porcentaje(df, param, param1):
+    total = df[df['numero_contrato'] == param]['valor'].sum()
+    if total > 0:
+        porcentaje = (param1 / total) * 100
+        return f"{porcentaje:.1f}"
+    return "0.00"
+
+
+def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo):
+    # remove fully empty rows (all NaN) and rows where every value is empty/whitespace
+    df = df.dropna(how='all').reset_index(drop=True)
+    df = df[~df.apply(lambda r: r.astype(str).str.strip().eq('').all(), axis=1)].reset_index(drop=True)
     formato = pd.DataFrame([{
         'tipo_registro': tipo_registro,
         'id_recurso': row['id_recurso'],
         'nit': nit,
-        'indicador': row['indicador'],
-        'codigo': row['codigo'],
+        'indicador': 'I',
+        'codigo_adminitarativo':'1',
         'numero_contrato': row['numero_contrato'],
-        'poliza': row['poliza'],
-        'fecha': row['fecha'].date(),
+        'tipo_contrato': '1',
+        'numero_acta': row['orden'],
+        'fecha_acta': row['fecha'],
+        'valor_acta': f"{str(row['valor']).split('.')[0]}.00",
+        'valor_pagado':  f"{str(row['valor']).split('.')[0]}.00",
+        'porcentaje': obtenert_porcentaje(df, row['numero_contrato'], row['valor']),
+        'conlusion': 'ENTREGADO PARCIAL DE LOS PRODUCTOS CONTRATADOS',
+    } for _, row in df.iterrows()])
+
+    valor_rango = inicio_consecutivo + 1
+    formato.insert(1, 'consecutivo_registro', range(valor_rango, valor_rango + len(formato)))
+    return formato
+
+def df_tipo_6(tipo_registro,nit, inicio_consecutivo):
+    formato = pd.DataFrame([{
+        'tipo_registro': tipo_registro,
+        'id_recurso': 'ID2177823635',
+        'nit': nit,
+        'indicador': 'NA',
+        'codigo': '',
+        'numero_contrato': '',
+        'fecha_inicio': '',
+        'codigo_entidad_aseguradora': '',
+        'nit_aseguradora': '',
+        'cuenta_poliza': '',
+        'valor_asegurado': '',
+        'fecha_consignacion': '',
+        'fecha_vencimiento': ''
+    }])
+
+    valor_rango = inicio_consecutivo + 1
+    formato.insert(1, 'consecutivo_registro', range(valor_rango, valor_rango + len(formato)))
+    return formato
+
+
+def df_tipo_7(tipo_registro,nit, inicio_consecutivo, df):
+    formato = pd.DataFrame([{
+        'tipo_registro': tipo_registro,
+        'id_recurso': row['id_recurso'],
+        'nit': nit,
+        'indicador': 'I',
+        'codigo_adminitarativo': '5',
+        'numero_contrato': row['numero_contrato'],
+        'fecha_acta': row['fecha'].date(),
+        'entidad':'1',
+        'nit_entidad': row['banco'],
+        'cuenta_bancaria': row['cuenta'],
+        'rendimiento': str(row['rendimiento']).replace('000',''),
+        'fecha_pago_rendimiento': row['fecha_pago'].date(),
+        'portafolio': row['portafolio'],
     } for _, row in df.iterrows()])
 
     valor_rango = inicio_consecutivo + 1
@@ -118,17 +180,17 @@ def main():
 
     PROPIEDADES_TIPO_2 = [
     # 1
-        ['ID2177823635', 'ID2139724657'], # RESOLUCION
+        ['ID2177823635'], # RESOLUCION
     # 2
-        ['A', 'I'],
+        ['A'],
     # 3
         '4',
     # 4
-        ['123201','123753'],
+        ['123201'],
     # 5
-        ['2024-03-04', '2024-09-19'],
+        ['2024-03-04'],
     # 6
-        ['4097080240.00', '6012006700.00'],
+        ['4097080240.00'],
     ]
 
     PROPIEDADES_TIPO_3 = [
@@ -138,110 +200,54 @@ def main():
         '1',
     # 3
         [
-            'CONTRATAR LA PRESTACION DE SERVICIOS CON EL FIN DE LLEVAR A CABO LAS ACTIVIDADES DESCRITAS PARA LOS EQUIPOS BASICOS DE SALUD EN EL MICROTERRITORIO ASIGNADO, EL DESARROLLO DE LA ESTRATEGIA DE ATENCION PRIMARIA EN SALUD, MEDIANTE LA VISITA DOMICILIARIA DE LA POBLACION DEL MUNICIPIO DE PASTO, IMPLEMENTANDO EL LINEAMIENTO EMITIDO POR EL MINISTERIO DE SALUD A RAIZ DE LA EXPEDICION DE LA RESOLUCION 2016 DEL 29 DE NOVIEMBRE DEL 2023 Y LA RESOLUCION 1778 DEL 31 DE OCTUBRE DE 2023 CONFORME A LAS OBLIGACIONES DESCRITAS EN EL NUMERAL 2.3 DE LOS PRESENTES ESTUDIOS DE CONVENIENCIA Y OPORTUNIDAD DE PASTO SALUD ESE',
-            'ADQUISICION DE CHALECOS, GORRAS Y MALETINES CON EMBLEMAS OIFICIALES PARA IDENTIFICAR A LOS MIEMBROS DE LOS EQUIPOS BASICOS DE SALUD ',
+            'CONTRATAR LA PRESTACION DE SERVICIOS CON EL FIN DE LLEVAR A CABO LAS ACTIVIDADES DESCRITAS PARA LOS EQUIPOS BASICOS DE SALUD EN EL MICROTERRITORIO ASIGNADO',
+            'ADQUISICION DE CHALECOS GORRAS Y MALETINES CON EMBLEMAS OIFICIALES PARA IDENTIFICAR A LOS MIEMBROS DE LOS EQUIPOS BASICOS DE SALUD',
             'PRESTACION DE SERVICIOS DE TRANSPORTE ESPECIAL PARA EL DESARROLLO DE LA ESTRATEGIA DE ATENCION',
             'COMPRA DE EQUIPOS BIOMEDICOSPARA EQUIPOS BASICOS EN SALUD DE LAS DIFERENTES SEDES QUE CONFORMAN LAS REDES PRESTADORAS DE SERVICIOS EN SALUD',
-            'PRESTACION DE SERVICIOS PARA EL APOYO A LA GESTION COMO COORDINACION TECNICA ADMINISTRATIVA CON EL FIN DE APOYAR A LA EJECUCION OPERATIVA DEL PROYECTO FORTALECIMIENTO DE LA GESTION TERRITORIAL EN APS, EQUIPOS BASICOS DE SALUD: CONFORMACION OPERACION Y SEGUIMIENTO Y PRIMORDIALMENTE DEL CORRECTO FUNCIONAMIENTO DE LOS EQUIPOS BASICOS DE SALUD - EBS, PROPORCIONANDO EL PERSONAL DE APOYO PARA LA LOGISTICA Y SISTEMATIZACION DE LA INFORMACION Y FACILITAR LA ARTICULACION DE LAS INTERSECTORIALIDAD Y CONTINUIDAD EN LA ATENCION EN SALUD EN EL MUNICIPIO DE PASTO',
-            'COMPRA DE ELEMENTOS CATEGORIZADOS EN LE LINEA DE CONSUMO MATERIALES Y SUMINISTROS DE ACUERDO A LAS NECESIDADES IDENTIFICADAS PARA EL DESARROLLO DEL PROGRAMA DE ATENCION PRIMARIA EN SALUD DE LOS EQUIPOS BASICOS DE SALUD EN LAS DIFERENTES ZONAS Y MICROTERRITORIOS RURALES Y URBANOS DEL MUNICIPIO DE PASTO EJECUTADO POR PASTO SALUD ESE ',
-            'COMPRA DE MATERIAL PUBLICITARIO DE IDENTIFICACION DEL PERSONAL DE EQUIPOS BSICOS EN SALUD, DENTRO DEL DESARROLLO DE ESTRATEGIAS DE ATENCION PRIMARIA EN SALUD EN LAS DIFERENTES ZONAS Y MICROTERRITORIOS RURALES Y URBANOS DEL MUNICIPIO DE PASTO EJECUTADO POR PASTO SALUD ESE.'
+            'PRESTACION DE SERVICIOS PARA EL APOYO A LA GESTION COMO COORDINACION TECNICA ADMINISTRATIVA CON EL FIN DE APOYAR A LA EJECUCION OPERATIVA DEL PROYECTO FORTALECIMIENTO DE LA GESTION TERRITORIAL EN APS',
+            'COMPRA DE ELEMENTOS CATEGORIZADOS EN LE LINEA DE CONSUMO MATERIALES Y SUMINISTROS DE ACUERDO A LAS NECESIDADES IDENTIFICADAS PARA EL DESARROLLO DEL PROGRAMA DE ATENCION PRIMARIA EN SALUD DE LOS EQUIPOS BASICOS DE SALUD EN LAS DIFERENTES ZONAS Y MICROTERRITORIOS RURALES Y URBANOS DEL MUNICIPIO DE PASTO EJECUTADO POR PASTO SALUD ESE',
+            'COMPRA DE MATERIAL PUBLICITARIO DE IDENTIFICACION DEL PERSONAL DE EQUIPOS BASICOS EN SALUD DENTRO DEL DESARROLLO DE ESTRATEGIAS DE ATENCION PRIMARIA EN SALUD EN LAS DIFERENTES ZONAS Y MICROTERRITORIOS RURALES Y URBANOS DEL MUNICIPIO DE PASTO EJECUTADO POR PASTO SALUD ESE.'
         ]
     ]
 
-    url = 'activos/costos.xlsx'
+    url = 'activos/reporte_ser/RESOLUSION_1778_TIPO_3.xlsx'
     ur_polisa = 'activos/polisa.xlsx'
-    url_flujo = 'activos/flujo_caja-2024.xlsx'
-    url_flujo_2025 = 'activos/flujo_caja-2025.xlsx'
+    url_flujo = 'activos/reporte_ser/RESOLUSION_1778_TIPO_5.xlsx'
+    url_rendimiento = 'activos/rendimientos.xlsx'
 
 
+    cruzadfas = 'activos/cruzadas.xlsx'
+    url_flujo_2025 = 'activos/flujo_caja-limpio.xlsx'
+    url_consolidado_1773 = 'activos/consolidado_1773.xlsx'
+    sumar_valores = 'activos/ap.xlsx'
 
     # Read the Excel file
     df = pd.read_excel(url, engine='openpyxl')  # Ensure `openpyxl` is installed
     df_recurso_4 = pd.read_excel(ur_polisa)  # Ensure `openpyxl` is installed
-    df_contratos_presentes_en_caja = pd.read_excel(url_flujo,engine='openpyxl')
-    df_contratos_presentes_en_caja_2025 = pd.read_excel(url_flujo_2025)# Ensure `openpyxl` is installed
+    df_recurso_5 = pd.read_excel(url_flujo, engine='openpyxl')  # Ensure `openpyxl` is installed
+    df_recurso_7 = pd.read_excel(url_rendimiento, engine='openpyxl')  # Ensure `openpyxl` is installed
 
-    # limiar contrato
-    df_contratos_presentes_en_caja['numero_contrato'] = df_contratos_presentes_en_caja['numero_contrato'].str.replace(' ','').str.extract(r'(\d{3,4}-\d{4})')[0]
-    df_contratos_presentes_en_caja['fecha'] = pd.to_datetime(df_contratos_presentes_en_caja['fecha'], errors='coerce').dt.date
-    df_contratos_presentes_en_caja_2025['numero_contrato'] = df_contratos_presentes_en_caja_2025['numero_contrato'].str.replace(' ','').str.extract(r'(\d{3,4}-\d{4})')[0]
-    df_contratos_presentes_en_caja_2025['fecha'] = pd.to_datetime(df_contratos_presentes_en_caja_2025['fecha'], errors='coerce').dt.date
+    #df_group_by_numero = df.groupby('numero_contrato')['valor'].sum().reset_index()
+    #df_group_by_numero.to_excel('activos/consolidado_1778_final.xlsx', index=False)
+    #df_contratos_presentes_en_caja_2025['diferente'] =  df_contratos_presentes_en_caja_2025['valor'] == df_contratos_presentes_en_caja_2025['valor_pagado']
 
-    df_caja_flujo_2024 = df_contratos_presentes_en_caja
+    #df_group_by_numero.to_excel('activos/nueva_cruzada_restantes_1778.xlsx', index=False)
+    #df_recurso_5.to_excel('activos/flujo_caja_limpio.xlsx', index=False)
 
-    # limpiar dejar valores unicaos de caja
-    df_contratos_presentes_en_caja = df_contratos_presentes_en_caja.drop_duplicates(subset=['numero_contrato'])
+    #df_recurso_5['numero_contrato'] = \
+    #df_recurso_5['numero_contrato'].str.replace(' ', '').str.extract(r'(\d{3,4}-\d{4})')[0]
+    df_recurso_5['fecha'] = pd.to_datetime(df_recurso_5['fecha'],
+                                                             errors='coerce').dt.date
 
-    # contratos que no estan en ninugna reeoslucion en caja 2024
-    df_ninguna_Resolucion_pero_facturaron = df_contratos_presentes_en_caja[~df_contratos_presentes_en_caja['numero_contrato'].isin(df['numero_contrato'])].copy()
+    #df_recurso_5.to_excel('activos/flujo_caja_limpio_3.xlsx', index=False)
 
-    # solo sacar la de la resolucion 1778
-    df_resolucion_1778 = df[df['id_recurso'] == 'ID2177823635'].copy()
-    df_resolucion_1397 = df[df['id_recurso'] == 'ID2139724657'].copy()
-
-    df_flujo_1778 = df_resolucion_1778[df_resolucion_1778['numero_contrato'].isin(df_caja_flujo_2024['numero_contrato'])].copy()
-
-    df_pagos_caja_1778 = df_caja_flujo_2024[
-        df_caja_flujo_2024['numero_contrato'].isin(df_flujo_1778['numero_contrato'])].copy()
-
-    # Agrupar el costo total por mes
-    df_pagos_caja_1778['mes'] = pd.to_datetime(df_pagos_caja_1778['fecha']).dt.to_period('M')
-
-    costo_total_por_mes = df_pagos_caja_1778.groupby('mes')['valor'].sum().reset_index()
-
-    pagados_1778 = costo_total_por_mes[['valor']].sum()
-    costo_total_a_pagar_1778 = df_flujo_1778[['valor_real']].sum()
-
-    df_no_presentes_en_caja_1778 = df_resolucion_1778[~df_resolucion_1778['numero_contrato'].isin( df_contratos_presentes_en_caja['numero_contrato'])]
-    suma_1778_no_pagadas = df_no_presentes_en_caja_1778[['valor']].sum(numeric_only=True)
-
-
-    # calcular lo de la resolucion 1397
-    df_flujo_1397 =  df_resolucion_1397[df_resolucion_1397['numero_contrato'].isin( df_caja_flujo_2024['numero_contrato'])].copy()
-    df_pagos_caja_1397 = df_caja_flujo_2024[
-        df_caja_flujo_2024['numero_contrato'].isin(df_flujo_1397['numero_contrato'])].copy()
-
-    # Agrupar el costo total por mes
-    df_pagos_caja_1397['mes'] = pd.to_datetime(df_pagos_caja_1397['fecha']).dt.to_period('M')
-
-    pagados_1397 = df_pagos_caja_1397[['valor']].sum()
-    costo_total_a_pagar_1397 = df_flujo_1397[['valor_real']].sum()
-
-
-    suma_1397_personas_pagadas = df_flujo_1397[['valor_real']].sum(numeric_only=True)
-    df_no_presentes_en_caja_1397 = df_resolucion_1397[~df_resolucion_1397['numero_contrato'].isin( df_contratos_presentes_en_caja['numero_contrato'])]
-    suma_1397_no_pagadas = df_no_presentes_en_caja_1397[['valor']].sum(numeric_only=True)
-
-
-    # no presentes de la resolucion 1397 y 1778
-    df_no_presentes = pd.concat([df_no_presentes_en_caja_1778, df_no_presentes_en_caja_1397], ignore_index=True)
-    df_contratos_2025 = df_contratos_presentes_en_caja_2025.drop_duplicates(subset=['numero_contrato'])
-
-
-    df_presentes_2025 = df_no_presentes[df_no_presentes['numero_contrato'].isin(df_contratos_2025['numero_contrato'])].copy()
-    df_revisar = df_no_presentes[~df_no_presentes['numero_contrato'].isin(df_contratos_2025['numero_contrato'])].copy()
-    df_flujo_presentes_2025 = df_contratos_presentes_en_caja_2025[df_contratos_presentes_en_caja_2025['numero_contrato'].isin(df_presentes_2025['numero_contrato'])].copy()
-
-
-    pagados_2025 = df_flujo_presentes_2025[['valor']].sum()
-    costo_total_a_pagar_2025 = df_presentes_2025[['valor_real']].sum()
-
-
-    dinero_esperado_a_pagar_resoluciones =  costo_total_a_pagar_2025 + costo_total_a_pagar_1397 + costo_total_a_pagar_1778
-    dinero_pagado_hasta_fecha = pagados_2025 + pagados_1397 + pagados_1778
-
-
-    # Identificar las filas donde aparece cada contrato
-    df_flujo_1778['filas_contrato'] = df_flujo_1778.groupby('numero_contrato').cumcount() + 1
-
-    df_malas = df_contratos_presentes_en_caja[df_contratos_presentes_en_caja['numero_contrato'].isna()].copy()
 
 
 # FALTRAIA FRECUENCIA DE PAGO EN EL TIPO 4
 # SEGUROS
 
     # 0
-    TIPO_REGISTROS = ['1','2', '3','4','5']
+    TIPO_REGISTROS = ['1','2', '3','4','5','6','7']
     # 3
     FE_CORTE = datetime.now().strftime('%Y-%m-%d')
 
@@ -249,14 +255,26 @@ def main():
     tipo_2 = df_tipo_2(TIPO_REGISTROS[1], PROPIEDADES_TIPO_2, PROPIEDADES_TIPO_1[1])
     tipo_3 = df_tipo_3(TIPO_REGISTROS[2],len(tipo_2),PROPIEDADES_TIPO_3,df,PROPIEDADES_TIPO_1[1])  # Suponiendo que no hay registros de tipo 3 por ahora
     tipo_4 = df_tipo_4(TIPO_REGISTROS[3], df_recurso_4, PROPIEDADES_TIPO_1[1], len(tipo_2) + len(tipo_3))  # Suponiendo que no hay registros de tipo 4 por ahora
-    tipo_5 = df_tipo_5(TIPO_REGISTROS[4], PROPIEDADES_TIPO_5, len(tipo_2) + len(tipo_3) + len(tipo_4))  # Suponiendo que no hay registros de tipo 5 por ahora
+    tipo_5 = df_tipo_5(TIPO_REGISTROS[4], df_recurso_5, PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4))  # Suponiendo que no hay registros de tipo 5 por ahora
+    tipo_6 = df_tipo_6(TIPO_REGISTROS[5], PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5))
+    tipo_7 = df_tipo_7(TIPO_REGISTROS[6], PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5) + len(tipo_6),df_recurso_7)
+    # Suponiendo que no hay registros de tipo 6 por ahora
+    tipo_1 = df_tipo_1(TIPO_REGISTROS[0], PROPIEDADES_TIPO_1,
+                        len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5) + len(tipo_6) + len(tipo_7))
 
-    tipo_1 = df_tipo_1(TIPO_REGISTROS[0], PROPIEDADES_TIPO_1, 100)
+    consolidado = codificar_formato(tipo_1) + '\n'
+    consolidado += codificar_formato(tipo_2) + '\n'
+    consolidado += codificar_formato(tipo_3) + '\n'
+    consolidado += codificar_formato(tipo_4) + '\n'
+    consolidado += codificar_formato(tipo_5) + '\n'
+    consolidado += codificar_formato(tipo_6) + '\n'
+    consolidado += codificar_formato(tipo_7)
 
+    file_name = f"reportes/SER124DREC20251031NI000900091143ID2177823635.txt"
 
-
-
-    print(consolidado)
+    # Guardar el archivo en la misma carpeta
+    with open(file_name, 'w', encoding='utf-8') as f:
+        f.write(consolidado)
 
 
 if __name__ == "__main__":
