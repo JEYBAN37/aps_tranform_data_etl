@@ -19,14 +19,14 @@ from propiedades_aps124 import DISCAPACIDAD, ANIMALES_PERMITIDO, NIVEL_ESTUDIO, 
 
 
 def limpiar_tildes(texto):
-    if pd.isna(texto):
+    if texto is None or pd.isna(texto):
         return ''
-    texto = texto.strip()  # Remove leading and trailing spaces
+    texto = str(texto).strip()  # Remove leading and trailing spaces
     texto = ''.join(
         c for c in unicodedata.normalize('NFD', texto)
         if unicodedata.category(c) != 'Mn'
     )
-    return re.sub(r'[-.#_·|/Ñ\s]', '', texto)  # Remove symbols, hyphens, and dots
+    return re.sub(r'[-:.,#_·)(|/Ñ\s]', '', texto)
 
 def limpiar_formato_longitud(valor):
     try:
