@@ -59,7 +59,7 @@ def df_tipo_3(tipo_registro, inicio_consecutivo, propiedades_tipo_3, df_personas
         'fecha_inicio_contrato': row['fecha_inicio_contrato'].date(),
         'fecha_termino_contrato':  pd.to_datetime(row['fecha_termino_contrato']).strftime('%Y-%m-%d') if pd.notna(row['fecha_termino_contrato']) else '',
         'objeto_contrato': convertidor_objeto(row['objeto']).upper(),
-        'valor': f"{row['valor_contratado']}.00",
+        'valor': f"{row['valor_contratado']}0",
         'contratista_tipo_identificacion': row['contratista_tipo_identificacion'],
         'numero_identificacion': str(row['numero_identificacion']).split('.')[0] if pd.notna(row['numero_identificacion']) else '',
         'nombre_contratista': limpiar_tildes(row['nombre_contratista']) if pd.notna(row['nombre_contratista']) and row['nombre_contratista'] != '' else '',
@@ -113,7 +113,7 @@ def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo):
         'fecha_acta': row['fecha'],
         'valor_acta': f"{str(row['valor']).split('.')[0]}.00",
         'valor_pagado':  f"{str(row['valor']).split('.')[0]}.00",
-        'porcentaje': obtenert_porcentaje(df, row['numero_contrato'], row['valor']),
+        'porcentaje': '100.00',
         'conlusion': 'ENTREGADO PARCIAL DE LOS PRODUCTOS CONTRATADOS',
     } for _, row in df.iterrows()])
 
@@ -124,7 +124,7 @@ def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo):
 def df_tipo_6(tipo_registro,nit, inicio_consecutivo):
     formato = pd.DataFrame([{
         'tipo_registro': tipo_registro,
-        'id_recurso': 'ID2177823635',
+        'id_recurso': 'ID2139724657',
         'nit': nit,
         'indicador': 'NA',
         'codigo': '',
@@ -155,7 +155,7 @@ def df_tipo_7(tipo_registro,nit, inicio_consecutivo, df):
         'entidad':'1',
         'nit_entidad': row['banco'],
         'cuenta_bancaria': row['cuenta'],
-        'rendimiento': str(row['rendimiento']).replace('000',''),
+        'rendimiento': str(row['rendimiento']),
         'fecha_pago_rendimiento': row['fecha_pago'].date(),
         'portafolio': row['portafolio'],
     } for _, row in df.iterrows()])
@@ -173,24 +173,24 @@ def main():
     # 2
     '900091143',
     # 3
-    '2024-12-01',
+    '2025-10-01',
     # 4
-    '2024-12-31',
+    '2025-10-31',
     ]
 
     PROPIEDADES_TIPO_2 = [
     # 1
-        ['ID2177823635'], # RESOLUCION
+        ['ID2139724657'], # RESOLUCION
     # 2
-        ['A'],
+        ['I'],
     # 3
         '4',
     # 4
-        ['123201'],
+        ['123753'],
     # 5
-        ['2024-03-04'],
+        ['2024-09-19'],
     # 6
-        ['4097080240.00'],
+        ['6012006700.00'],
     ]
 
     PROPIEDADES_TIPO_3 = [
@@ -210,10 +210,10 @@ def main():
         ]
     ]
 
-    url = 'activos/reporte_ser/RESOLUSION_1778_TIPO_3.xlsx'
-    ur_polisa = 'activos/polisa.xlsx'
-    url_flujo = 'activos/reporte_ser/RESOLUSION_1778_TIPO_5.xlsx'
-    url_rendimiento = 'activos/rendimientos.xlsx'
+    url = 'activos/reporte_ser/RESOLUSION_1397_TIPO_3.xlsx'
+    ur_polisa = 'activos/polisa_1397.xlsx'
+    url_flujo = 'activos/reporte_ser/RESOLUSION_1397_TIPO_5.xlsx'
+    url_rendimiento = 'activos/rendimientos_1397.xlsx'
 
 
     cruzadfas = 'activos/cruzadas.xlsx'
@@ -270,7 +270,7 @@ def main():
     consolidado += codificar_formato(tipo_6) + '\n'
     consolidado += codificar_formato(tipo_7)
 
-    file_name = f"reportes/SER124DREC20251031NI000900091143ID2177823635.txt"
+    file_name = f"reportes/SER124DREC20251031NI000900091143{PROPIEDADES_TIPO_2[0][0]}5.txt"
 
     # Guardar el archivo en la misma carpeta
     with open(file_name, 'w', encoding='utf-8') as f:
