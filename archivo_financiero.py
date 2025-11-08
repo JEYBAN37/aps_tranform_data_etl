@@ -181,7 +181,7 @@ def main():
 
     PROPIEDADES_TIPO_2 = [
     # 1
-        ['ID2139724657'], # RESOLUCION
+        ['ID2177823635'], # RESOLUCION
     # 2
         ['NA'],
     # 3
