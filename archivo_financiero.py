@@ -89,12 +89,13 @@ def df_tipo_4(tipo_registro, df ,nit, inicio_consecutivo):
     return formato
 
 
-def obtenert_porcentaje(df, param, param1):
+def obtenert_porcentaje(df, param, idx):
     total = df[df['numero_contrato'] == param]['valor'].sum()
     if total > 0:
-        porcentaje = (param1 / total) * 100
+        cumulative = df.loc[:idx][df.loc[:idx]['numero_contrato'] == param]['valor'].sum()
+        porcentaje = (cumulative / total) * 100
         return f"{porcentaje:.1f}"
-    return "0.00"
+    return f"{0.0:.1f}"
 
 
 def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo):
@@ -113,7 +114,7 @@ def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo):
         'fecha_acta': row['fecha'],
         'valor_acta': f"{str(row['valor']).split('.')[0]}.00",
         'valor_pagado':  f"{str(row['valor']).split('.')[0]}.00",
-        'porcentaje': obtenert_porcentaje(df, row['numero_contrato'], row['valor']),
+        'porcentaje': '100.00',
         'conlusion': 'ENTREGADO PARCIAL DE LOS PRODUCTOS CONTRATADOS',
     } for _, row in df.iterrows()])
 
@@ -121,10 +122,10 @@ def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo):
     formato.insert(1, 'consecutivo_registro', range(valor_rango, valor_rango + len(formato)))
     return formato
 
-def df_tipo_6(tipo_registro,nit, inicio_consecutivo):
+def df_tipo_6(tipo_registro,nit, inicio_consecutivo,id_recurso):
     formato = pd.DataFrame([{
         'tipo_registro': tipo_registro,
-        'id_recurso': 'ID2177823635',
+        'id_recurso': id_recurso,
         'nit': nit,
         'indicador': 'NA',
         'codigo': '',
@@ -148,7 +149,7 @@ def df_tipo_7(tipo_registro,nit, inicio_consecutivo, df):
         'tipo_registro': tipo_registro,
         'id_recurso': row['id_recurso'],
         'nit': nit,
-        'indicador': 'I',
+        'indicador': row['indicador'],
         'codigo_adminitarativo': '5',
         'numero_contrato': row['numero_contrato'],
         'fecha_acta': row['fecha'].date(),
@@ -173,24 +174,24 @@ def main():
     # 2
     '900091143',
     # 3
-    '2024-12-01',
+    '2025-10-01',
     # 4
-    '2024-12-31',
+    '2025-10-31',
     ]
 
     PROPIEDADES_TIPO_2 = [
     # 1
-        ['ID2177823635'], # RESOLUCION
+        ['ID2139724657'], # RESOLUCION
     # 2
-        ['A'],
+        ['NA'],
     # 3
-        '4',
+        '',
     # 4
-        ['123201'],
+        [''],
     # 5
-        ['2024-03-04'],
+        [''],
     # 6
-        ['4097080240.00'],
+        [''],
     ]
 
     PROPIEDADES_TIPO_3 = [
@@ -254,9 +255,11 @@ def main():
 
     tipo_2 = df_tipo_2(TIPO_REGISTROS[1], PROPIEDADES_TIPO_2, PROPIEDADES_TIPO_1[1])
     tipo_3 = df_tipo_3(TIPO_REGISTROS[2],len(tipo_2),PROPIEDADES_TIPO_3,df,PROPIEDADES_TIPO_1[1])  # Suponiendo que no hay registros de tipo 3 por ahora
+
+
     tipo_4 = df_tipo_4(TIPO_REGISTROS[3], df_recurso_4, PROPIEDADES_TIPO_1[1], len(tipo_2) + len(tipo_3))  # Suponiendo que no hay registros de tipo 4 por ahora
     tipo_5 = df_tipo_5(TIPO_REGISTROS[4], df_recurso_5, PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4))  # Suponiendo que no hay registros de tipo 5 por ahora
-    tipo_6 = df_tipo_6(TIPO_REGISTROS[5], PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5))
+    tipo_6 = df_tipo_6(TIPO_REGISTROS[5], PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5),PROPIEDADES_TIPO_2[0][0])  # Suponiendo que no hay registros de tipo 6 por ahora
     tipo_7 = df_tipo_7(TIPO_REGISTROS[6], PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5) + len(tipo_6),df_recurso_7)
     # Suponiendo que no hay registros de tipo 6 por ahora
     tipo_1 = df_tipo_1(TIPO_REGISTROS[0], PROPIEDADES_TIPO_1,
@@ -270,7 +273,7 @@ def main():
     consolidado += codificar_formato(tipo_6) + '\n'
     consolidado += codificar_formato(tipo_7)
 
-    file_name = f"reportes/SER124DREC20251031NI000900091143ID2177823635.txt"
+    file_name = f"reportes/SER124DREC20251031NI000900091143{PROPIEDADES_TIPO_2[0][0]}.txt"
 
     # Guardar el archivo en la misma carpeta
     with open(file_name, 'w', encoding='utf-8') as f:
