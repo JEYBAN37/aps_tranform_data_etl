@@ -26,7 +26,7 @@ def limpiar_tildes(texto):
         c for c in unicodedata.normalize('NFD', texto)
         if unicodedata.category(c) != 'Mn'
     )
-    return re.sub(r'[-:.,#_·)(|/Ñ\s]', '', texto)
+    return re.sub(r'[-:.,#_·°"✓)(|/Ñ\s]', '', texto)
 
 def limpiar_formato_longitud(valor):
     try:
@@ -49,7 +49,7 @@ def limpiar_formato_longitud(valor):
         if -180 <= valor_float <= 180:
             # Verificar que tenga más de 6 dígitos después del punto
             partes = str(valor_float).split('.')
-            if len(partes) < 2 or len(partes[1]) <= 5:
+            if len(partes) < 2 or len(partes[1]) < 4:
                 return np.nan
 
             # Verificar que el valor antes del punto sea exactamente 77
@@ -218,7 +218,7 @@ def calculo_apgar(param):
 def calculo_variables_segun_zarit(param):
     param = int(param)
     try:
-        if param <= 60:
+        if param <= 80:
             return 1
         elif param <= 45:
             return 2
@@ -233,7 +233,7 @@ def calculo_zarit(param):
             return 1
         elif 47 <= param <= 55:
             return 2
-        elif param <= 60:
+        elif param <= 90:
             return 3
         return param
     except (ValueError, TypeError):
@@ -566,8 +566,8 @@ def registros_tipo_3(tipo_registro, df_personas, df_familias=None,valor_rango=1)
     return formato
 
 def main():
-    numero = limpiar_formato_longitud('-77.2278862')
-    numero_lat = limpiar_formato_latitud('1.222630')
+    numero = limpiar_formato_longitud('-77.26670')
+    numero_lat = limpiar_formato_latitud('1.201450')
 
     global cursor
 

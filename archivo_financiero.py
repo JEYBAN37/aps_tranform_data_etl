@@ -270,7 +270,7 @@ def main():
     consolidado += codificar_formato(tipo_6) + '\n'
     consolidado += codificar_formato(tipo_7)
 
-    file_name = f"reportes/SER124DREC20251031NI000900091143{PROPIEDADES_TIPO_2[0][0]}5.txt"
+    file_name = f"reportes/SER124DREC20251031NI000900091143{PROPIEDADES_TIPO_2[0][0]}.txt"
 
     # Guardar el archivo en la misma carpeta
     with open(file_name, 'w', encoding='utf-8') as f:
