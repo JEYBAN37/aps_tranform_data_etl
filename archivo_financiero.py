@@ -59,7 +59,7 @@ def df_tipo_3(tipo_registro, inicio_consecutivo, propiedades_tipo_3, df_personas
         'fecha_inicio_contrato': row['fecha_inicio_contrato'].date(),
         'fecha_termino_contrato':  pd.to_datetime(row['fecha_termino_contrato']).strftime('%Y-%m-%d') if pd.notna(row['fecha_termino_contrato']) else '',
         'objeto_contrato': convertidor_objeto(row['objeto']).upper(),
-        'valor': f"{row['valor_contratado']}0",
+        'valor': f"{row['valor_contratado']}.00",
         'contratista_tipo_identificacion': row['contratista_tipo_identificacion'],
         'numero_identificacion': str(row['numero_identificacion']).split('.')[0] if pd.notna(row['numero_identificacion']) else '',
         'nombre_contratista': limpiar_tildes(row['nombre_contratista']) if pd.notna(row['nombre_contratista']) and row['nombre_contratista'] != '' else '',
@@ -72,17 +72,29 @@ def df_tipo_3(tipo_registro, inicio_consecutivo, propiedades_tipo_3, df_personas
     formato.insert(1, 'consecutivo_registro', range(valor_rango, valor_rango + len(formato)))
     return formato
 
-def df_tipo_4(tipo_registro, df ,nit, inicio_consecutivo):
-    formato = pd.DataFrame([{
-        'tipo_registro': tipo_registro,
-        'id_recurso': row['id_recurso'],
-        'nit': nit,
-        'indicador': row['indicador'],
-        'codigo': row['codigo'],
-        'numero_contrato': row['numero_contrato'],
-        'poliza': row['poliza'],
-        'fecha': row['fecha'].date(),
-    } for _, row in df.iterrows()])
+def df_tipo_4(tipo_registro, df ,nit, inicio_consecutivo, recurso='ID2139724657'):
+    if df.empty:
+        formato = pd.DataFrame([{
+            'tipo_registro': tipo_registro,
+            'id_recurso': recurso,
+            'nit': nit,
+            'indicador': 'NA',
+            'codigo': '',
+            'numero_contrato': '',
+            'poliza':'',
+            'fecha':'',
+        }])
+    else :
+        formato = pd.DataFrame([{
+            'tipo_registro': tipo_registro,
+            'id_recurso': row['id_recurso'],
+            'nit': nit,
+            'indicador': row['indicador'],
+            'codigo': row['codigo'],
+            'numero_contrato': row['numero_contrato'],
+            'poliza': row['poliza'],
+            'fecha': row['fecha'].date(),
+        } for _, row in df.iterrows()])
 
     valor_rango = inicio_consecutivo + 1
     formato.insert(1, 'consecutivo_registro', range(valor_rango, valor_rango + len(formato)))
@@ -113,7 +125,7 @@ def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo):
         'fecha_acta': row['fecha'],
         'valor_acta': f"{str(row['valor']).split('.')[0]}.00",
         'valor_pagado':  f"{str(row['valor']).split('.')[0]}.00",
-        'porcentaje': '100.00',
+        'porcentaje': '100.0',
         'conlusion': 'ENTREGADO PARCIAL DE LOS PRODUCTOS CONTRATADOS',
     } for _, row in df.iterrows()])
 
@@ -121,10 +133,10 @@ def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo):
     formato.insert(1, 'consecutivo_registro', range(valor_rango, valor_rango + len(formato)))
     return formato
 
-def df_tipo_6(tipo_registro,nit, inicio_consecutivo):
+def df_tipo_6(tipo_registro,nit, inicio_consecutivo,id_recurso):
     formato = pd.DataFrame([{
         'tipo_registro': tipo_registro,
-        'id_recurso': 'ID2139724657',
+        'id_recurso': id_recurso,
         'nit': nit,
         'indicador': 'NA',
         'codigo': '',
@@ -143,22 +155,40 @@ def df_tipo_6(tipo_registro,nit, inicio_consecutivo):
     return formato
 
 
-def df_tipo_7(tipo_registro,nit, inicio_consecutivo, df):
-    formato = pd.DataFrame([{
-        'tipo_registro': tipo_registro,
-        'id_recurso': row['id_recurso'],
-        'nit': nit,
-        'indicador': 'I',
-        'codigo_adminitarativo': '5',
-        'numero_contrato': row['numero_contrato'],
-        'fecha_acta': row['fecha'].date(),
-        'entidad':'1',
-        'nit_entidad': row['banco'],
-        'cuenta_bancaria': row['cuenta'],
-        'rendimiento': str(row['rendimiento']),
-        'fecha_pago_rendimiento': row['fecha_pago'].date(),
-        'portafolio': row['portafolio'],
-    } for _, row in df.iterrows()])
+def df_tipo_7(tipo_registro,nit, inicio_consecutivo, df, id_recurso):
+
+    if df.empty:
+        formato = pd.DataFrame([{
+            'tipo_registro': tipo_registro,
+            'id_recurso': id_recurso,
+            'nit': nit,
+            'indicador': 'NA',
+            'codigo_adminitarativo': '',
+            'numero_contrato': '',
+            'fecha_acta': '',
+            'entidad':'',
+            'nit_entidad': '',
+            'cuenta_bancaria': '',
+            'rendimiento': '',
+            'fecha_pago_rendimiento': '',
+            'portafolio': '',
+        }])
+    else :
+        formato = pd.DataFrame([{
+            'tipo_registro': tipo_registro,
+            'id_recurso': row['id_recurso'],
+            'nit': nit,
+            'indicador': 'I',
+            'codigo_adminitarativo': '5',
+            'numero_contrato': row['numero_contrato'],
+            'fecha_acta': row['fecha'].date(),
+            'entidad':'1',
+            'nit_entidad': row['banco'],
+            'cuenta_bancaria': row['cuenta'],
+            'rendimiento': str(row['rendimiento']),
+            'fecha_pago_rendimiento': row['fecha_pago'].date(),
+            'portafolio': row['portafolio'],
+        } for _, row in df.iterrows()])
 
     valor_rango = inicio_consecutivo + 1
     formato.insert(1, 'consecutivo_registro', range(valor_rango, valor_rango + len(formato)))
@@ -180,17 +210,17 @@ def main():
 
     PROPIEDADES_TIPO_2 = [
     # 1
-        ['ID2139724657'], # RESOLUCION
+        ['ID2197624614'], # RESOLUCION
     # 2
         ['I'],
     # 3
         '4',
     # 4
-        ['123753'],
+        ['123004'],
     # 5
-        ['2024-09-19'],
+        ['2025-05-27'],
     # 6
-        ['6012006700.00'],
+        ['1678951650.00'],
     ]
 
     PROPIEDADES_TIPO_3 = [
@@ -210,10 +240,10 @@ def main():
         ]
     ]
 
-    url = 'activos/reporte_ser/RESOLUSION_1397_TIPO_3.xlsx'
-    ur_polisa = 'activos/polisa_1397.xlsx'
-    url_flujo = 'activos/reporte_ser/RESOLUSION_1397_TIPO_5.xlsx'
-    url_rendimiento = 'activos/rendimientos_1397.xlsx'
+    url = 'activos/reporte_ser/RESOLUCION_1976_TIPO_3.xlsx'
+    ur_polisa = 'activos/polisa_1976.xlsx'
+    url_flujo = 'activos/reporte_ser/RESOLUCION_1976_TIPO_5.xlsx'
+    url_rendimiento = 'activos/rendimientos_1976.xlsx'
 
 
     cruzadfas = 'activos/cruzadas.xlsx'
@@ -254,10 +284,10 @@ def main():
 
     tipo_2 = df_tipo_2(TIPO_REGISTROS[1], PROPIEDADES_TIPO_2, PROPIEDADES_TIPO_1[1])
     tipo_3 = df_tipo_3(TIPO_REGISTROS[2],len(tipo_2),PROPIEDADES_TIPO_3,df,PROPIEDADES_TIPO_1[1])  # Suponiendo que no hay registros de tipo 3 por ahora
-    tipo_4 = df_tipo_4(TIPO_REGISTROS[3], df_recurso_4, PROPIEDADES_TIPO_1[1], len(tipo_2) + len(tipo_3))  # Suponiendo que no hay registros de tipo 4 por ahora
+    tipo_4 = df_tipo_4(TIPO_REGISTROS[3], df_recurso_4, PROPIEDADES_TIPO_1[1], len(tipo_2) + len(tipo_3),PROPIEDADES_TIPO_2[0][0] )  # Suponiendo que no hay registros de tipo 4 por ahora
     tipo_5 = df_tipo_5(TIPO_REGISTROS[4], df_recurso_5, PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4))  # Suponiendo que no hay registros de tipo 5 por ahora
-    tipo_6 = df_tipo_6(TIPO_REGISTROS[5], PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5))
-    tipo_7 = df_tipo_7(TIPO_REGISTROS[6], PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5) + len(tipo_6),df_recurso_7)
+    tipo_6 = df_tipo_6(TIPO_REGISTROS[5], PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5),PROPIEDADES_TIPO_2[0][0])
+    tipo_7 = df_tipo_7(TIPO_REGISTROS[6], PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5) + len(tipo_6),df_recurso_7,PROPIEDADES_TIPO_2[0][0])
     # Suponiendo que no hay registros de tipo 6 por ahora
     tipo_1 = df_tipo_1(TIPO_REGISTROS[0], PROPIEDADES_TIPO_1,
                         len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5) + len(tipo_6) + len(tipo_7))

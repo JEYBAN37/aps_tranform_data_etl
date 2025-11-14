@@ -1,5 +1,5 @@
-MICROTERRITORIO = '003'
-TERRITORIO = 'T01'
+MICROTERRITORIO = ('001','002','003','004')
+TERRITORIO = 'T02'
 
 PROPIEDADES_TIPO_1 = [
     # 1
@@ -34,10 +34,10 @@ PROPIEDADES_TIPO_1 = [
     # 0
 TIPO_REGISTROS = ['1','2', '3']
     # 3
-FECHA_INICIAL = '2025-11-04'
+FECHA_INICIAL = '2025-11-10'
 
     # 4
-FECHA_FINAL = '2025-11-04'
+FECHA_FINAL = '2025-11-10'
 
 PROPIEDADES_TIPO_2 = [
         # 2
@@ -267,7 +267,7 @@ def query_familias (territorio,microterritorio):
         ON s.responsable_id = r.id
         LEFT JOIN agsolutic_aps2024.observacions o
         ON f.id = o.familia_id
-        WHERE u.territorio = '{territorio}' AND u.cod_microterritorio = '{microterritorio}'
+        WHERE u.territorio = '{territorio}' AND u.cod_microterritorio IN {microterritorio}
         ORDER BY s.id
         """
 
