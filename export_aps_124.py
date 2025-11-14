@@ -663,13 +663,13 @@ def main():
         tipo_1 = registro_tipo_1(TIPO_REGISTROS[0], PROPIEDADES_TIPO_1, FECHA_INICIAL, FECHA_FINAL, len(tipo_3) + len(df_familias_a_crear))
 
 
-        os.makedirs(F'reportes/{FE_REPORTE}', exist_ok=True)
-        falla_cordenadas.to_csv(F'reportes/{FE_REPORTE}/falla_cordenadas_{FE_REPORTE}_{TERRITORIO}_{MICROTERRITORIO}.csv')
-        responsables_malos.to_csv(F'reportes/{FE_REPORTE}/responsables_malos_{FE_REPORTE}_{TERRITORIO}_{MICROTERRITORIO}.csv')
-        df_familias_sin_personas.to_csv(F'reportes/{FE_REPORTE}/familias_sin_personas_{FE_REPORTE}_{TERRITORIO}_{MICROTERRITORIO}.csv')
+        os.makedirs(F'reportes/{FE_REPORTE}/{TERRITORIO}', exist_ok=True)
+        falla_cordenadas.to_csv(F'reportes/{FE_REPORTE}/{TERRITORIO}/falla_cordenadas_{FE_REPORTE}_{TERRITORIO}_{MICROTERRITORIO}.csv')
+        responsables_malos.to_csv(F'reportes/{FE_REPORTE}/{TERRITORIO}/responsables_malos_{FE_REPORTE}_{TERRITORIO}_{MICROTERRITORIO}.csv')
+        df_familias_sin_personas.to_csv(F'reportes/{FE_REPORTE}/{TERRITORIO}/familias_sin_personas_{FE_REPORTE}_{TERRITORIO}_{MICROTERRITORIO}.csv')
 
         reporte = pd.concat([tipo_1, df_familias_a_crear, tipo_3], ignore_index=True)
-        reporte.to_csv(f'reportes/{FE_REPORTE}/reporte_aps124_{FE_REPORTE}_{TERRITORIO}_{MICROTERRITORIO}.csv', index=False)
+        reporte.to_csv(f'reportes/{FE_REPORTE}/{TERRITORIO}/reporte_aps124_{FE_REPORTE}_{TERRITORIO}_{MICROTERRITORIO}.csv', index=False)
 
         tipo_3 = tipo_3.iloc[:, 1:]  # Eliminar la primera columna
         tipo_2 = df_familias_a_crear.iloc[:, 1:]
@@ -678,8 +678,7 @@ def main():
         consolidado += codificar_formato(tipo_2) + '\n'
         consolidado += codificar_formato(tipo_3)
 
-        file_name = f"reportes/{FE_REPORTE}/APS124CCFP{FECHA_INICIAL.replace('-','')}NI000900091143.txt"
-
+        file_name = f"reportes/{FE_REPORTE}/{TERRITORIO}/APS124CCFP{FECHA_INICIAL.replace('-','')}NI000900091143.txt"
 
 
         # Guardar el archivo en la misma carpeta
