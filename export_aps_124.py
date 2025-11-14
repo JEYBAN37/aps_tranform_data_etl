@@ -26,7 +26,7 @@ def limpiar_tildes(texto):
         c for c in unicodedata.normalize('NFD', texto)
         if unicodedata.category(c) != 'Mn'
     )
-    return re.sub(r'[-:.,#_·°"✓)(|/Ñ\s]', '', texto)
+    return re.sub(r'[-:.,#=_É·°"✓)(|/Ñ\s]', '', texto)
 
 def limpiar_formato_longitud(valor):
     try:
@@ -130,12 +130,15 @@ def contador_nomenclatura_familia_hogar(_):
     return f'F{_+1:04}'
 
 def convertidor_tipo_cedulas(param):
-    if pd.isna(param) or param.strip() == '' or param is None or param == 'None':
-        return 'CC'
-    param = param.strip().upper()
-    if(param == 'PTT'):
-        return 'PT'
-    elif(param == 'CC'):
+    try:
+        if pd.isna(param) or param.strip() == '' or param is None or param == 'None':
+            return 'CC'
+        param = param.strip().upper()
+        if(param == 'PTT'):
+            return 'PT'
+        elif(param == 'CC'):
+            return 'CC'
+    except (ValueError, TypeError):
         return 'CC'
 
 def convertidor_vivienda(param):
@@ -150,7 +153,7 @@ def convertidor_material(param, default):
         param = int(param.split('.')[0])
         return param
     except (ValueError, TypeError):
-        return int(default)
+        return default
 
 def convertidor_calculo_familiograma(param, default):
     try:
@@ -160,7 +163,7 @@ def convertidor_calculo_familiograma(param, default):
             return param
         return int(default)
     except (ValueError, TypeError):
-        return int(default)
+        return default
 
 def convertir_animales(param):
     try:
@@ -175,7 +178,7 @@ def convertir_animales(param):
 
         # Concatenate the codes with commas
         return ",".join(codigos)
-    except KeyError:
+    except (KeyError, ValueError, TypeError):
         return 13
 
 def contar_animales(param , num_1 , num_2):
@@ -201,8 +204,8 @@ def contar_animales(param , num_1 , num_2):
         return 0
 
 def calculo_apgar(param):
-    param = int(param)
     try:
+        param = int(param)
         if  17 <= param:
             return 1
         elif 13 <= param <= 16:
@@ -216,8 +219,8 @@ def calculo_apgar(param):
         return 1
 
 def calculo_variables_segun_zarit(param):
-    param = int(param)
     try:
+        param = int(param)
         if param <= 80:
             return 1
         elif param <= 45:
@@ -227,8 +230,8 @@ def calculo_variables_segun_zarit(param):
         return 1
 
 def calculo_zarit(param):
-    param = int(param)
     try:
+        param = int(param)
         if  param <= 46:
             return 1
         elif 47 <= param <= 55:
@@ -361,7 +364,8 @@ def registro_tipo_2(tipo_registro, propiedades, df_info_general):
 
     # poenr mayusculas a todos los campos de tipo string
     for col in formato.select_dtypes(include=['object']).columns:
-        formato[col] = formato[col].str.upper()
+        formato[col] = formato[col].apply(
+            lambda v: v.upper() if isinstance(v, str) and any(ch.isalpha() for ch in v) and pd.notna(v) else v)
 
     return formato , df_invalidos, df_responsables_fantasma
 
@@ -418,39 +422,41 @@ def convertidor_mapa(parama, mapa, default):
 
 def evaluacion_poblacional(param , edad = None ,discapacidad = None, gestante = None,riesgo_psicosocial = None, sospecha_victima = None):
 
-    param = limpiar_tildes(param).upper()
-    discapacidad = limpiar_tildes(discapacidad).upper() if discapacidad else ''
-    gestante = limpiar_tildes(gestante).upper() if gestante else ''
-    edad = int(edad.split('.')[0])
-    riesgo_psicosocial = limpiar_tildes(riesgo_psicosocial).upper()
-    sospecha_victima = limpiar_tildes(sospecha_victima).upper()
+    try:
+        param = limpiar_tildes(param).upper()
+        discapacidad = limpiar_tildes(discapacidad).upper() if discapacidad else ''
+        gestante = limpiar_tildes(gestante).upper() if gestante else ''
+        edad = int(edad.split('.')[0])
+        riesgo_psicosocial = limpiar_tildes(riesgo_psicosocial).upper()
+        sospecha_victima = limpiar_tildes(sospecha_victima).upper()
 
-    print(sospecha_victima)
 
-    if param == '' or param is None or param == 'None':
+        if param == '' or param is None or param == 'None':
+            return '8'
+
+        if edad < 18:
+            return '1'
+
+        if edad >= 60:
+            return '3'
+
+        if discapacidad in DISCAPACIDAD:
+            return '4'
+
+        if gestante == 'SI':
+            return '2'
+
+        opciones = ['NO', 'NO APLICA', 'SD', '']
+
+        if riesgo_psicosocial not in opciones or sospecha_victima not in  opciones:
+            return '6'
+
+        if param == 'ADULTEZ' or param == 'JUVENTUD' or param == 'NO APLICA':
+           return '7'
+
+        return '7'
+    except (ValueError, TypeError):
         return '8'
-
-    if edad < 18:
-        return '1'
-
-    if edad >= 60:
-        return '3'
-
-    if discapacidad in DISCAPACIDAD:
-        return '4'
-
-    if gestante == 'SI':
-        return '2'
-
-    opciones = ['NO', 'NO APLICA', 'SD', '']
-
-    if riesgo_psicosocial not in opciones or sospecha_victima not in  opciones:
-        return '6'
-
-    if param == 'ADULTEZ' or param == 'JUVENTUD' or param == 'NO APLICA':
-       return '7'
-
-    return '7'
 
 def limpiar_formato_tala(param):
     # con expresion regular quitar letras tildes comas puntos
@@ -488,6 +494,11 @@ def enfermedades_cronicas(enfermedades):
 
     return enfermedades_sin_tildes
 
+def safe_str(val, default='REVISAR'):
+    if pd.isna(val) or val is None:
+        return default
+    return str(val).strip()
+
 def registros_tipo_3(tipo_registro, df_personas, df_familias=None,valor_rango=1):
 
     # quitar los None
@@ -505,47 +516,53 @@ def registros_tipo_3(tipo_registro, df_personas, df_familias=None,valor_rango=1)
         validate="many_to_one"  # Cada persona pertenece a una sola familia
     )
 
-
     formato = pd.DataFrame([{
         'id_familia_db': row['id_familia_db'],
         'tipo_registro': tipo_registro,
-        'primer_nombre': limpiar_tildes(row['primer_nombre']) if pd.notna(row['primer_nombre']) and row['primer_nombre'] != '' else '',
-        'segundo_nombre': limpiar_tildes(row['segundo_nombre']) if pd.notna(row['segundo_nombre']) and row['segundo_nombre'] != '' else '',
-        'primer_apellido': limpiar_tildes(row['primer_apellido']) if pd.notna(row['primer_apellido']) and row['primer_apellido'] != '' else '',
-        'segundo_apellido': limpiar_tildes(row['segundo_apellido']) if pd.notna(row['segundo_apellido']) and row['segundo_apellido'] != '' else '',
-        'tipo_documento': convertidor_tipo_cedulas(row['tipodoc']),
-        'numero_documento': row['numerodoc'].replace(',', '').strip(),
+        'primer_nombre': limpiar_tildes(row['primer_nombre']) if pd.notna(row['primer_nombre']) and row[
+            'primer_nombre'] != '' else '',
+        'segundo_nombre': limpiar_tildes(row['segundo_nombre']) if pd.notna(row['segundo_nombre']) and row[
+            'segundo_nombre'] != '' else '',
+        'primer_apellido': limpiar_tildes(row['primer_apellido']) if pd.notna(row['primer_apellido']) and row[
+            'primer_apellido'] != '' else '',
+        'segundo_apellido': limpiar_tildes(row['segundo_apellido']) if pd.notna(row['segundo_apellido']) and row[
+            'segundo_apellido'] != '' else '',
+        'tipo_documento': convertidor_tipo_cedulas(row.get('tipodoc')),
+        'numero_documento': safe_str(row.get('numerodoc')).replace(',', ''),
         'fecha_nacimiento': pd.to_datetime(row['fechanac']).strftime('%Y-%m-%d') if pd.notna(row['fechanac']) else '',
-        'sexo': covertir_sexo(row['sexo']),
-        'gestante': definir_pregunta_dos_opciones(row['gestacion'], 'SI'),
-        'rol': convertidor_multicampos(row['rol'],['1','2','3','4','5','6']),
-        'ocupacion':convertidor_material(row['ocupacion'], '9998'),
-        'estudio': convertidor_multicampos(row['estudio'],NIVEL_ESTUDIO,'3'),
-        'regimen_afiliacion': convertidor_multicampos(limpiar_tildes(row['regimen']),AFILIACION  , '5'),
-        'eapb':'',
-        'grupo_poblacional': evaluacion_poblacional(row['cursovida'],row['edad'],row['discapacidad'], row['riesgopsicosocial'], row['sopechamaltrato']),
-        'etnia': convertidor_multicampos(row['etnia'],ETNIA , '07'),
-        'medico_tradicional':'',
-        'pueblo_indigena':'',
-        'condiciones_disca': convertidor_multicampos(limpiar_tildes(row['discapacidad']),DISCAPACIDAD, '8'),
-        'peso': limpiar_formato_peso(row['peso']),
-        'talla': limpiar_formato_tala(row['talla']),
+        'sexo': covertir_sexo(row.get('sexo')),
+        'gestante': definir_pregunta_dos_opciones(row.get('gestacion'), 'SI'),
+        'rol': convertidor_multicampos(row.get('rol'), ['1', '2', '3', '4', '5', '6']),
+        'ocupacion': convertidor_material(row.get('ocupacion'), '9998'),
+        'estudio': convertidor_multicampos(row.get('estudio'), NIVEL_ESTUDIO, '3'),
+        'regimen_afiliacion': convertidor_multicampos(limpiar_tildes(row.get('regimen')), AFILIACION, '5'),
+        'eapb': '',
+        'grupo_poblacional': evaluacion_poblacional(row.get('cursovida'), row.get('edad'), row.get('discapacidad'),
+                                                    row.get('riesgopsicosocial'), row.get('sopechamaltrato')),
+        'etnia': convertidor_multicampos(row.get('etnia'), ETNIA, '07'),
+        'medico_tradicional': '',
+        'pueblo_indigena': '',
+        'condiciones_disca': convertidor_multicampos(limpiar_tildes(row.get('discapacidad')), DISCAPACIDAD, '8'),
+        'peso': limpiar_formato_peso(row.get('peso')),
+        'talla': limpiar_formato_tala(row.get('talla')),
         'peso_talla': '',
         'perimetro_branquial': '',
-        'codiciones_cronicas': convertidor_multicampos(row['condicioncronica'], enfermedades_cronicas(ENFERMEDADES_CRONICAS), '2'),
+        'codiciones_cronicas': convertidor_multicampos(row.get('condicioncronica'),
+                                                       enfermedades_cronicas(ENFERMEDADES_CRONICAS), '2'),
         'materno': '',
         'intervenciones_canalizaciones': '',
-        'motivos_no_atencion':'',
-        'practica_deporte':'',
-        'lactancia_materna' : '',
-        'memses_lactancia':'',
-        'signos_desnutricion':'',
-        'gastrica_o_respiratoria':'',
-        'gastrica_o_respiratoria_desc':'',
-        'atencion_enfermedad_aguda':'',
-        'motivos':'',
-        'numero_id_hogar': row['numero_id_hogar'] + row['numero_id_familia'],
-        'id_integrante': row['numero_id_hogar'] + row['numero_id_familia'] + convertidor_tipo_cedulas(row['tipodoc']) + row['numerodoc'],
+        'motivos_no_atencion': '',
+        'practica_deporte': '',
+        'lactancia_materna': '',
+        'memses_lactancia': '',
+        'signos_desnutricion': '',
+        'gastrica_o_respiratoria': '',
+        'gastrica_o_respiratoria_desc': '',
+        'atencion_enfermedad_aguda': '',
+        'motivos': '',
+        'numero_id_hogar': safe_str(row.get('numero_id_hogar')) + safe_str(row.get('numero_id_familia')),
+        'id_integrante': safe_str(row.get('numero_id_hogar')) + safe_str(row.get('numero_id_familia')) + safe_str(
+            convertidor_tipo_cedulas(row.get('tipodoc'))) + safe_str(row.get('numerodoc')),
     } for _, row in df_merged.iterrows()
     ])
 
@@ -553,7 +570,8 @@ def registros_tipo_3(tipo_registro, df_personas, df_familias=None,valor_rango=1)
 
     # poenr mayusculas a todos los campos de tipo string
     for col in formato.select_dtypes(include=['object']).columns:
-        formato[col] = formato[col].str.upper()
+        formato[col] = formato[col].apply(
+            lambda v: v.upper() if isinstance(v, str) and any(ch.isalpha() for ch in v) and pd.notna(v) else v)
 
 
     # ordenar por id_familia_db
