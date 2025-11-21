@@ -1,6 +1,8 @@
 import logging
 import os
 import re
+from types import NoneType
+
 import mysql
 import pandas as pd
 import numpy as np
@@ -19,6 +21,7 @@ from propiedades_aps124 import DISCAPACIDAD, ANIMALES_PERMITIDO, NIVEL_ESTUDIO, 
 
 
 def limpiar_tildes(texto):
+    print("paso tildes")
     if texto is None or pd.isna(texto):
         return ''
     texto = str(texto).strip()  # Remove leading and trailing spaces
@@ -26,12 +29,10 @@ def limpiar_tildes(texto):
         c for c in unicodedata.normalize('NFD', texto)
         if unicodedata.category(c) != 'Mn'
     )
-    return re.sub(r'[-:.,#=_É·°"✓)(|/Ñ\s]', '', texto)
+    return re.sub(r'[-:.;,#=_É·°"✓)(|/Ñ\s]', '', texto)
 
 def limpiar_formato_longitud(valor):
     try:
-        if pd.isna(valor):
-            return np.nan
         valor = str(valor).replace(',', '.')
         valor = valor.replace('-', '')  # Eliminar cualquier signo negativo existente
         valor_float = float(valor)
@@ -65,13 +66,11 @@ def limpiar_formato_longitud(valor):
             return valor_float
         else:
             return np.nan
-    except ValueError:
+    except (ValueError, TypeError, IndexError):
         return np.nan
 
 def limpiar_formato_latitud(valor):
     try:
-        if pd.isna(valor):
-            return np.nan
         valor = str(valor).replace(',', '.')
         valor = valor.replace('-', '')  # Eliminar cualquier signo negativo existente
 
@@ -94,7 +93,7 @@ def limpiar_formato_latitud(valor):
             return valor_float
         else:
             return np.nan
-    except ValueError:
+    except (ValueError, TypeError, IndexError):
         return np.nan
 
 def registro_tipo_1(tipo_registro, propiedades, fecha_inicial,fecha_final, num_total_registros):
@@ -121,6 +120,7 @@ def contador_nomenclatura(_, param, estado={'prev_param': None, 'contador': 0}):
     return f'{estado["contador"]:04}'
 
 def contador_nomenclatura_familia(_):
+    print(_)
     return f'{_+1:04}'
 
 def contador_nomenclatura_hogar(_):
@@ -130,29 +130,43 @@ def contador_nomenclatura_familia_hogar(_):
     return f'F{_+1:04}'
 
 def convertidor_tipo_cedulas(param):
+    print("paso tipo cedula")
     try:
         if pd.isna(param) or param.strip() == '' or param is None or param == 'None':
             return 'CC'
         param = param.strip().upper()
-        if(param == 'PTT'):
+        if(param == 'PTT' or param == 'PPT'):
             return 'PT'
         elif(param == 'CC'):
             return 'CC'
+        elif(param == 'TI'):
+            return 'TI'
     except (ValueError, TypeError):
         return 'CC'
 
 def convertidor_vivienda(param):
     try:
         param = int(param.split('.')[0])
+        print("paso vivienda")
         return param
     except (ValueError, TypeError):
         return 12
 
 def convertidor_material(param, default):
     try:
-        param = int(param.split('.')[0])
-        return param
-    except (ValueError, TypeError):
+        if param is None:
+            raise ValueError("param es None")
+
+        # Convertir a string por si viene como número o algo raro
+        param = str(param)
+
+        # Partir antes del punto y convertir a int
+        value = int(param.split('.')[0])
+
+        print("paso material")
+        return value
+
+    except Exception:
         return default
 
 def convertidor_calculo_familiograma(param, default):
@@ -162,11 +176,12 @@ def convertidor_calculo_familiograma(param, default):
         if 1 <= param <= 3:
             return param
         return int(default)
-    except (ValueError, TypeError):
+    except Exception:
         return default
 
 def convertir_animales(param):
     try:
+        print("paso animales")
         # Split the input string by the separator (e.g., "_")
         animales = param.lower().split("_")
 
@@ -178,7 +193,7 @@ def convertir_animales(param):
 
         # Concatenate the codes with commas
         return ",".join(codigos)
-    except (KeyError, ValueError, TypeError):
+    except Exception:
         return 13
 
 def contar_animales(param , num_1 , num_2):
@@ -221,7 +236,7 @@ def calculo_apgar(param):
 def calculo_variables_segun_zarit(param):
     try:
         param = int(param)
-        if param <= 80:
+        if param <= 100:
             return 1
         elif param <= 45:
             return 2
@@ -236,7 +251,7 @@ def calculo_zarit(param):
             return 1
         elif 47 <= param <= 55:
             return 2
-        elif param <= 90:
+        elif param <= 100:
             return 3
         return param
     except (ValueError, TypeError):
@@ -277,19 +292,19 @@ def registro_tipo_2(tipo_registro, propiedades, df_info_general):
         'longitud':limpiar_formato_longitud(row['longitud']),
         'latitud': limpiar_formato_latitud(row['latitud']),
         'referencia_ubicacion': '',
-        'numero_id_hogar': propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + row['microterritorio'].replace('0', 'MT', 1) + 'EBS' +  f'{1:03}H' + contador_nomenclatura_familia(_),
-        'numero_id_familia': propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + row['microterritorio'].replace('0', 'MT', 1) + 'EBS' +  f'{1:03}H{contador_nomenclatura_familia(_)}F{contador_nomenclatura_familia(_)}',
+        'numero_id_hogar': propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio'].replace('0', 'MT', 1))+ 'EBS' +  f'{1:03}H' + contador_nomenclatura_familia(_),
+        'numero_id_familia': propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio'].replace('0', 'MT', 1)) + 'EBS' +  f'{1:03}H{contador_nomenclatura_familia(_)}F{contador_nomenclatura_familia(_)}',
         'estrato': row['estrato'] if pd.notna(row['estrato']) and str(row['estrato']).isdigit() and 1 <= int(row['estrato']) <= 6 else '0',
         'numero_hogares': row['numerohogares'] if pd.notna(row['numerohogares']) and str(row['numerohogares']).isdigit() and int(row['numerohogares']) > 0 else '1',
         'numero_familias': row['numerohogares'] if pd.notna(row['numerohogares']) and str(row['numerohogares']).isdigit() and int(row['numerohogares']) > 0 else '1',
         'numero_personas': row['numerohabitantes'],
         #'equpo_basico':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + row['microterritorio'].replace('0', 'MT', 1) + 'EBS' +  f'{_ + 1:03}',
-        'equpo_basico':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + row['microterritorio'].replace('0', 'MT', 1) + 'EBS' +  f'{1:03}',
+        'equpo_basico':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio'].replace('0', 'MT', 1)) + 'EBS' +  f'{1:03}',
         'nit_prestador': propiedades[4],
         'tipo_documento_responsable': convertidor_tipo_cedulas(row['tipodocr']),
-        'numero_documento_responsable': row['docr'].replace(',', '').strip(),
+        'numero_documento_responsable': str(row['microterritorio'].replace('0', 'MT', 1)).replace(',', '').strip(),
         'perfil': limpiar_tildes(row['profesion']) if row['profesion'] != '' else 'OTRO',
-        'codigo':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + row['microterritorio'].replace('0', 'MT', 1) + 'EBS' +  f'{1:03}H' +contador_nomenclatura_familia(_) + f'F{contador_nomenclatura_familia(_)}' + contador_nomenclatura_hogar(_),
+        'codigo':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio'].replace('0', 'MT', 1)) + 'EBS' +  f'{1:03}H' +contador_nomenclatura_familia(_) + f'F{contador_nomenclatura_familia(_)}' + contador_nomenclatura_hogar(_),
         'fecha': pd.to_datetime(row['fecha']).strftime('%Y-%m-%d') if pd.notna(row['fecha']) else '',
         'tipo_vivienda': convertidor_vivienda(row['vivienda']),
         'tipo_vivienda_desc':'',
@@ -475,16 +490,27 @@ def limpiar_formato_peso(param):
     try:
         if pd.isna(param):
             return ''
-        resultado = re.sub(r'[a-zA-Z.\s]', '', param)
-
+        s = str(param).strip()
+        s = s.replace(',', '.')
+        # keep only digits and the dot
+        resultado = re.sub(r'[^0-9\.]', '', s)
+        if resultado == '':
+            return ''
+        # If multiple dots, keep the first and join the rest as decimals
+        if resultado.count('.') > 1:
+            parts = resultado.split('.')
+            resultado = parts[0] + '.' + ''.join(parts[1:])
+        if '.' in resultado:
+            valor = float(resultado)
+            return f"{valor:.1f}"
+        # No dot present, preserve original heuristic
         if len(resultado) == 3:
             return f"{int(resultado) / 10:.1f}"
         elif len(resultado) <= 2:
             return resultado + '.0'
-        return resultado
-    except ValueError:
+        return resultado + '.0'
+    except Exception:
         return ''
-
 
 def enfermedades_cronicas(enfermedades):
     enfermedades_sin_tildes = {}
@@ -659,10 +685,14 @@ def main():
             'saludalternativa',
             'alimentos',
             'programasocial',
-            'higiene'
+            'higiene',
+            'total_personas_cursos_vida',
+            'estado'
         ])
 
         # Crear un gráfico de torta para la columna 'hacinamiento'
+        df_familias = df_familias[df_familias['total_personas_cursos_vida'] > 0]
+        df_familias = df_familias[df_familias['estado'] == 'SOCIOAMBIENTAL_OK']
 
         postulados_tipo_2, falla_cordenadas , responsables_malos = registro_tipo_2(TIPO_REGISTROS[1], PROPIEDADES_TIPO_2, df_familias.drop_duplicates(subset=['id_familia_db']))
 

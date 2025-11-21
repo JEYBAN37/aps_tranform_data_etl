@@ -1,13 +1,11 @@
 # Databricks notebook source
 def ejecutar_consulta_mysql(query,cursor,params=None):
-    # Load the data from the database into a Spark DataFrame
-    cursor.execute(query,params)
-    # Obtener los datos y las columnas
+    """Execute a query using the provided cursor and return the fetched rows as a list of tuples.
+    The previous implementation converted rows to strings and used a set which removed duplicates and
+    lost ordering, causing mismatches when assigning DataFrame columns. This version preserves row
+    order and original types.
+    """
+    cursor.execute(query, params)
     data = cursor.fetchall()
-    data_processed = set()
-    for row in data:
-        processed_row = tuple(str(value) for value in row)  # Convertir cada valor a str y usar tuple
-        data_processed.add(processed_row)
-
-    # Crear el DataFrame con las columnas en minúsculas
-    return [list(row) for row in data_processed]
+    # Return rows as a list of tuples (preserve order and types)
+    return [tuple(row) for row in data]
