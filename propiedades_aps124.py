@@ -1,5 +1,5 @@
 MICROTERRITORIO = ('001','002','003','004')
-TERRITORIO = 'T02'
+TERRITORIO = 'T03'
 
 PROPIEDADES_TIPO_1 = [
     # 1
@@ -257,17 +257,61 @@ def query_familias (territorio,microterritorio):
          f.saludalternativa,
          f.alimentos,
          f.programasocial,
-         f.higiene
-        FROM agsolutic_aps2024.familias f
-        LEFT JOIN agsolutic_aps2024.sociambientals s
-        ON f.sociambiental_id = s.id
-        LEFT JOIN agsolutic_aps2024.ubicaciones u 
-        ON s.ubicacion_id = u.id 
-        LEFT JOIN agsolutic_aps2024.responsables r
-        ON s.responsable_id = r.id
-        LEFT JOIN agsolutic_aps2024.observacions o
-        ON f.id = o.familia_id
-        WHERE u.territorio = '{territorio}' AND u.cod_microterritorio IN {microterritorio}
+         f.higiene,
+    COALESCE(j.total_juventud, 0)
+    + COALESCE(i.total_infantil, 0)
+    + COALESCE(p.total_primera_infancia, 0)
+    + COALESCE(a.total_adolescentes, 0)
+    AS total_personas_cursos_vida,
+
+    CASE
+        WHEN f.sociambiental_id IS NULL THEN 'SIN_SOCIOAMBIENTAL_ID'
+        WHEN s.id IS NULL THEN 'SOCIOAMBIENTAL_INVALIDO'
+        ELSE 'SOCIOAMBIENTAL_OK'
+    END AS estado
+
+    FROM agsolutic_aps2024.familias f
+    
+    LEFT JOIN agsolutic_aps2024.sociambientals s 
+           ON f.sociambiental_id = s.id
+    
+    LEFT JOIN agsolutic_aps2024.ubicaciones u 
+           ON s.ubicacion_id = u.id
+    
+    LEFT JOIN agsolutic_aps2024.responsables r 
+           ON s.responsable_id = r.id
+    
+    LEFT JOIN agsolutic_aps2024.observacions o 
+           ON o.familia_id = f.id
+    
+    -- 👉 Subconsulta: Juventud adultos por familia
+    LEFT JOIN (
+        SELECT familia_id, COUNT(*) AS total_juventud
+        FROM agsolutic_aps2024.juventudadultos
+        GROUP BY familia_id
+    ) j ON j.familia_id = f.id
+    
+    -- 👉 Subconsulta: Infantiles por familia
+    LEFT JOIN (
+        SELECT familia_id, COUNT(*) AS total_infantil
+        FROM agsolutic_aps2024.infantils
+        GROUP BY familia_id
+    ) i ON i.familia_id = f.id
+    
+    -- 👉 Subconsulta: Primera infancia por familia
+    LEFT JOIN (
+        SELECT familia_id, COUNT(*) AS total_primera_infancia
+        FROM agsolutic_aps2024.primerainfancias
+        GROUP BY familia_id
+    ) p ON p.familia_id = f.id
+    
+    -- 👉 Subconsulta: Adolescencias por familia
+    LEFT JOIN (
+        SELECT familia_id, COUNT(*) AS total_adolescentes
+        FROM agsolutic_aps2024.adolescencias
+        GROUP BY familia_id
+    ) a ON a.familia_id = f.id
+        WHERE u.territorio IN ('T01','T02','T03','T04','T05','T06','T07','T08','T09','T10','T11','T12','T13','T14','T15') AND u.cod_microterritorio IN {microterritorio}
         ORDER BY s.id
         """
 
