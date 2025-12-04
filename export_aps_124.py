@@ -29,7 +29,7 @@ def limpiar_tildes(texto):
         c for c in unicodedata.normalize('NFD', texto)
         if unicodedata.category(c) != 'Mn'
     )
-    return re.sub(r'[-:.;,#=_É·°"✓)(|/Ñ\s]', '', texto)
+    return re.sub(r'[-:.;,#=_É·°"✓*+)(|/Ñ\s]', '', texto)
 
 def limpiar_formato_longitud(valor):
     try:
@@ -63,7 +63,7 @@ def limpiar_formato_longitud(valor):
             # Asegurar que tenga máximo 2 números antes del punto
             if len(partes[0].replace('-', '')) > 2:
                 return np.nan
-            return valor_float
+            return str(valor_float)
         else:
             return np.nan
     except (ValueError, TypeError, IndexError):
@@ -90,7 +90,8 @@ def limpiar_formato_latitud(valor):
             # Asegurar que tenga máximo 1 número antes del punto
             if len(partes[0].replace('-', '')) > 1:
                 valor_float = float(partes[0][-1:] + '.' + partes[1])
-            return valor_float
+                # recortar maxiomo 7 digitos despues del punto
+            return str(float(f"{valor_float:.6f}"))
         else:
             return np.nan
     except (ValueError, TypeError, IndexError):
@@ -303,7 +304,8 @@ def registro_tipo_2(tipo_registro, propiedades, df_info_general):
         'nit_prestador': propiedades[4],
         'tipo_documento_responsable': convertidor_tipo_cedulas(row['tipodocr']),
         'numero_documento_responsable': str(row['microterritorio'].replace('0', 'MT', 1)).replace(',', '').strip(),
-        'perfil': limpiar_tildes(row['profesion']) if row['profesion'] != '' else 'OTRO',
+        'perfil': limpiar_tildes(row['profesion']) if pd.notna(row.get('profesion')) and str(
+            row.get('profesion')).strip() != '' and str(row.get('profesion')).strip().upper() != 'APSE' else 'OTRO',
         'codigo':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio'].replace('0', 'MT', 1)) + 'EBS' +  f'{1:03}H' +contador_nomenclatura_familia(_) + f'F{contador_nomenclatura_familia(_)}' + contador_nomenclatura_hogar(_),
         'fecha': pd.to_datetime(row['fecha']).strftime('%Y-%m-%d') if pd.notna(row['fecha']) else '',
         'tipo_vivienda': convertidor_vivienda(row['vivienda']),
@@ -496,6 +498,10 @@ def limpiar_formato_peso(param):
         resultado = re.sub(r'[^0-9\.]', '', s)
         if resultado == '':
             return ''
+        if len(resultado) > 4:
+            resultado =  resultado.replace('.', '')
+            completo = resultado[:-3] + '.' + resultado[-2:]
+            return f"{float(completo):.1f}"
         # If multiple dots, keep the first and join the rest as decimals
         if resultado.count('.') > 1:
             parts = resultado.split('.')
@@ -611,7 +617,7 @@ def registros_tipo_3(tipo_registro, df_personas, df_familias=None,valor_rango=1)
 
 def main():
     numero = limpiar_formato_longitud('-77.26670')
-    numero_lat = limpiar_formato_latitud('1.201450')
+    numero_lat = limpiar_formato_latitud('1.203703282')
 
     global cursor
 

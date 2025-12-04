@@ -1,23 +1,48 @@
 import os
 
-import mysql
+import mysql.connector
 import pandas as pd
 from google.oauth2.service_account import Credentials
+from pandas.io.gbq import to_gbq
+
 from credenciales import MYSQL_APS, MYSQL_REPLICA_USER, DATABASE_APS2024, MYSQL_REPLICA_PASSWORD, DATABASE
 from export_aps_124 import limpiar_formato_latitud, limpiar_formato_longitud
 from mysql_conector import ejecutar_consulta_mysql
 from datetime import datetime
 import gspread
 
+def cargar_csv_a_bigquery(df, table_id = "TU_PROYECTO.TU_DATASET.TU_TABLA",id = "TU_PROYECTO"):
+    to_gbq(
+        df,
+        destination_table=table_id,
+        project_id=id,
+        if_exists="replace",  # replace | append | fail
+    )
+
 
 def reescribir_hoja(sheet_id, sheet_name, df, client):
-    df = df.fillna("NULL")
+    # Normalizar DataFrame y evitar valores nulos que rompan la serialización
+    df = df.copy().fillna("")
     sheet = client.open_by_key(sheet_id).worksheet(sheet_name)
     sheet.clear()
-    # Ahora sí, convertir para Google Sheets
+
+    # Convertir columnas datetime / Timestamp a string para que sean JSON serializables
+    for col in df.columns:
+        try:
+            if pd.api.types.is_datetime64_any_dtype(df[col]):
+                df[col] = df[col].dt.strftime('%Y-%m-%d %H:%M:%S').fillna("").astype(str)
+            else:
+                # También manejar valores individuales que sean pd.Timestamp u objetos datetime
+                df[col] = df[col].apply(lambda x: x.strftime('%Y-%m-%d %H:%M:%S') if isinstance(x, (pd.Timestamp, datetime)) else ("" if pd.isna(x) else str(x)))
+        except Exception:
+            # En caso de cualquier excepción, forzar a string seguro
+            df[col] = df[col].apply(lambda x: "" if pd.isna(x) else str(x))
+
+    # Preparar los datos para Google Sheets: cabecera + filas
     data = [df.columns.tolist()] + df.values.tolist()
-    # Convertir Timestamps a string
-    sheet.update("A1", data)
+
+    # Usar argumentos nombrados para evitar la deprecation warning (values primero o named args)
+    sheet.update(range_name="A1", values=data)
 
 
 def main():
@@ -47,35 +72,11 @@ def main():
         for database in DATABASE:
             personas_query = ejecutar_consulta_mysql(f"""SELECT 
                 '{database}' AS db,
-                t.doc_id,
-                t.familia_id,
-                t.tipodocumento ,
-                t.primerapellido ,
-                t.segundoapellido ,
-                t.primernombre ,
-                t.segundonombre ,
-                t.gestacion ,
-                t.condicioncronica,
-                t.esquemavacunacion,
-                t.desparasitacion ,
-                t.valoracion,
-                t.higiene_oral,
-                t.aseguradora ,
-                t.regimen ,
-                t.metodosanticonceptivos,
-                t.infeccionestransmisionsexual,
-                t.controlP,
-                t.consumospa,
-                t.tomacitologia,
-                t.mamografia,
-                t.remisionespecifica,
-                t.discapacidad,
-                t.canalizacionuno , 
-                t.canalizaciondos ,
-                t.canalizaciontres ,
-                s.id,
-                t.cursodevida,
+                t.* ,
+                s.id as sociambiental_id,
                 s.fecha,
+                f.celular,
+                s.vivienda,
                 s.apellidosfamilia,
                 u.microterritorio,
                 u.cod_microterritorio,
@@ -92,123 +93,164 @@ def main():
                     ELSE 'DUPLICADO'
                 END AS estado
             FROM (
-                SELECT 
-                numerodoc AS doc_id ,
-                familia_id, 
-                tipodocumento , 
-                primerapellido , 
-                segundoapellido , 
-                primernombre , 
-                segundonombre,
-                gestacion ,
-                condicioncronica,
-                esquemavacunacion,
-                desparasitacion ,
-                valoracionmedica as valoracion,
-                saludoral as higiene_oral,
-                aseguradora ,
-                regimen ,
-                metodosanticonceptivos,
-                infeccionestransmisionsexual,
-                controlprenatal as controlP,
-                consumospa,
-                tomacitologia,
-                mamografia,
-                remisionespecifica,
-                discapacidad,
-                canalizacionuno ,
-                canalizaciondos ,
-                canalizaciontres ,
-                'Adulto' as cursodevida
-            	FROM {database}.juventudadultos
-                UNION ALL
-                SELECT 
-                numerodoc AS doc_id ,
-                familia_id, 
-                tipodocumento , 
-                primerapellido , 
-                segundoapellido , 
-                primernombre , 
-                segundonombre,
-                'NO APLICA' as gestacion ,
-                condicioncronica,
-                esquemavacunacion,
-                desparasitacion ,
-                crecimientoydesarrollo as valoracion,
-                higieneoral  as higiene_oral,
-                aseguradora ,
-                regimen ,
-                'NO APLICA' as  metodosanticonceptivos,
-                 'NO APLICA' as infeccionestransmisionsexual,
-                 'NO APLICA' as controlP,
-                 'NO APLICA' as consumospa,
-                 'NO APLICA' as tomacitologia,
-                 'NO APLICA' as mamografia,
-                remisionespecifica,
-                discapacidad,
-                canalizacionuno ,
-                canalizaciondos ,
-                canalizaciontres ,
-                'Infante' as cursodevida FROM {database}.infantils
-                UNION ALL
-                SELECT 
-                    numerodoc AS doc_id ,
-                familia_id, 
-                tipodocumento , 
-                primerapellido , 
-                segundoapellido , 
-                primernombre , 
-                segundonombre,
-                'NO APLICA' as gestacion ,
-                condicioncronica,
-                esquemavacunacion,
-                desparasitacion ,
-                crecimientoydesarrollo as valoracion,
-                higieneoral  as higiene_oral,
-                aseguradora ,
-                regimen ,
-                'NO APLICA' as  metodosanticonceptivos,
-                 'NO APLICA' as infeccionestransmisionsexual,
-                 'NO APLICA' as controlP,
-                 'NO APLICA' as consumospa,
-                 'NO APLICA' as tomacitologia,
-                 'NO APLICA' as mamografia,
-                remisionespecifica,
-                discapacidad,
-                canalizacionuno ,
-                canalizaciondos ,
-                canalizaciontres ,
-                'PrimeraInfancia' as cursodevida FROM {database}.primerainfancias
-                UNION ALL
-                SELECT     
-                numerodoc AS doc_id ,
-                familia_id, 
-                tipodocumento , 
-                primerapellido , 
-                segundoapellido , 
-                primernombre , 
-                segundonombre,
-                gestacion ,
-                condicioncronica,
-                esquemavacunacion,
-                desparasitacion ,
-                valoracionmedica as valoracion,
-                saludoral as higiene_oral,
-                aseguradora ,
-                regimen ,
-                metodosanticonceptivos,
-                infeccionestransmisionsexual,
-                controlprenatal as controlP,
-                consumospa,
-                'NO APLICA' as tomacitologia,
-                'NO APLICA' as mamografia,
-                remisionespecifica,
-                discapacidad,
-                canalizacionuno ,
-                canalizaciondos ,
-                canalizaciontres ,
-                'Adolescencia' as cursodevida FROM {database}.adolescencias
-            ) t
+    SELECT 
+        numerodoc AS doc_id,
+        familia_id,
+        tipodocumento,
+        primerapellido,
+        segundoapellido,
+        primernombre,
+        segundonombre,
+        gestacion,
+        condicioncronica,
+        esquemavacunacion,
+        desparasitacion,
+        valoracionmedica AS valoracion,
+        saludoral AS higiene_oral,
+        aseguradora,
+        regimen,
+        metodosanticonceptivos,
+        infeccionestransmisionsexual,
+        controlprenatal AS controlP,
+        consumospa,
+        tomacitologia,
+        mamografia,
+        remisionespecifica,
+        discapacidad,
+        fechanac,
+        cursovida,
+        sexo,
+        'NO APLICA' AS desnutricion,
+        iniciovidasexual,
+        riesgoembarazo,
+        canalizacionuno,
+        canalizaciondos,
+        canalizaciontres,
+        sopechamaltrato,
+        'NO APLICA' AS desarrolloinfantil,
+        'Adulto' AS cursodevida
+    FROM {database}.juventudadultos
+
+    UNION ALL
+
+    SELECT 
+        numerodoc AS doc_id,
+        familia_id,
+        tipodocumento,
+        primerapellido,
+        segundoapellido,
+        primernombre,
+        segundonombre,
+        'NO APLICA' AS gestacion,
+        condicioncronica,
+        esquemavacunacion,
+        desparasitacion,
+        crecimientoydesarrollo AS valoracion,
+        higieneoral AS higiene_oral,
+        aseguradora,
+        regimen,
+        'NO APLICA' AS metodosanticonceptivos,
+        'NO APLICA' AS infeccionestransmisionsexual,
+        'NO APLICA' AS controlP,
+        'NO APLICA' AS consumospa,
+        'NO APLICA' AS tomacitologia,
+        'NO APLICA' AS mamografia,
+        remisionespecifica,
+        discapacidad,
+        fechanac,
+        'NO APLICA' as cursovida,
+        sexo,
+        desnutricion,
+        'NO APLICA' AS iniciovidasexual,
+        'NO APLICA' AS riesgoembarazo,
+        canalizacionuno,
+        canalizaciondos,
+        canalizaciontres,
+        'NO APLICA' AS sopechamaltrato,
+        desarrolloinfantil,
+        'Infante' AS cursodevida
+    FROM {database}.infantils
+
+    UNION ALL
+
+    SELECT 
+        numerodoc AS doc_id,
+        familia_id,
+        tipodocumento,
+        primerapellido,
+        segundoapellido,
+        primernombre,
+        segundonombre,
+        'NO APLICA' AS gestacion,
+        condicioncronica,
+        esquemavacunacion,
+        desparasitacion,
+        crecimientoydesarrollo AS valoracion,
+        higieneoral AS higiene_oral,
+        aseguradora,
+        regimen,
+        'NO APLICA' AS metodosanticonceptivos,
+        'NO APLICA' AS infeccionestransmisionsexual,
+        'NO APLICA' AS controlP,
+        'NO APLICA' AS consumospa,
+        'NO APLICA' AS tomacitologia,
+        'NO APLICA' AS mamografia,
+        remisionespecifica,
+        discapacidad,
+        fechanac,
+        'NO APLICA' AS cursovida,
+        sexo,
+        desnutricion,
+        'NO APLICA' AS iniciovidasexual,
+        'NO APLICA' AS riesgoembarazo,
+        canalizacionuno,
+        canalizaciondos,
+        canalizaciontres,
+        'NO APILCA' AS sopechamaltrato,
+        desarrolloinfantil,
+        'PrimeraInfancia' AS cursodevida
+    FROM {database}.primerainfancias
+
+    UNION ALL
+
+    SELECT 
+        numerodoc AS doc_id,
+        familia_id,
+        tipodocumento,
+        primerapellido,
+        segundoapellido,
+        primernombre,
+        segundonombre,
+        gestacion,
+        condicioncronica,
+        esquemavacunacion,
+        desparasitacion,
+        valoracionmedica AS valoracion,
+        saludoral AS higiene_oral,
+        aseguradora,
+        regimen,
+        metodosanticonceptivos,
+        infeccionestransmisionsexual,
+        controlprenatal AS controlP,
+        consumospa,
+        'NO APLICA' AS tomacitologia,
+        'NO APLICA' AS mamografia,
+        remisionespecifica,
+        discapacidad,
+        fechanac,
+        cursovida,
+        sexo,
+        'NO APLICA' AS desnutricion,
+        iniciovidasexual,
+        riesgoembarazo,
+        canalizacionuno,
+        canalizaciondos,
+        canalizaciontres,
+        sopechamaltrato,
+        'NO APLICA' AS desarrolloinfantil,
+        'Adolescencia' AS cursodevida
+    FROM {database}.adolescencias
+) t
             LEFT JOIN {database}.familias f ON f.id = t.familia_id
             LEFT JOIN {database}.sociambientals s ON f.sociambiental_id = s.id 
             LEFT JOIN {database}.ubicaciones u ON s.ubicacion_id = u.id
@@ -241,6 +283,7 @@ def main():
     s.aguaservicio,
     s.diposicionexcretas,
     s.basura,
+    s.vivienda,
     o.familiograma,
     f.calculoapgar,
     f.apgarFuncionalidad,
@@ -252,9 +295,9 @@ def main():
     o.ecomapa,
     o.resultadoecomapa,
     o.dirfamiliograma,
-    o.familiograma,
     o.plancuidado,
     o.dirplancuidado,
+    o.date,
     s.id AS sociambiental_existente,
     u.microterritorio,
     u.cod_microterritorio,
@@ -345,9 +388,49 @@ LEFT JOIN (
         # dividir reporte Observacion duplicados y no duplicados
         df_familias_consolidados.drop_duplicates(subset=['familia_id','db'], keep='first', inplace=True)
 
+        df_personas_consolidados['familia_id'] = (
+            df_personas_consolidados['familia_id']
+            .fillna('')
+            .astype(str)
+            .str.strip()
+            .str.replace(r'\.0+$', '', regex=True)
+        )
 
-        for col in df_personas_consolidados.select_dtypes(include=['object']).columns:
-            df_personas_consolidados[col] = df_personas_consolidados[col].str.strip().str.replace(r'[^\w\s]', '', regex=True)
+        df_personas_consolidados['sociambiental_id'] = (
+            df_personas_consolidados['sociambiental_id']
+            .fillna('')
+            .astype(str)
+            .str.strip()
+            .str.replace(r'\.0+$', '', regex=True)
+        )
+
+        df_personas_consolidados['numero'] = (
+            df_personas_consolidados['numero']
+            .fillna('')
+            .astype(str)
+            .str.strip()
+            .str.replace(r'\.0+$', '', regex=True)
+        )
+
+        for col in df_personas_consolidados.columns:
+            df_personas_consolidados[col] = df_personas_consolidados[col].fillna('').astype(
+                str).str.strip().str.replace(r'[^\w\s]', '', regex=True)
+
+        df_personas_consolidados['fecha'] = pd.to_datetime(df_personas_consolidados['fecha'],
+                                                           errors='coerce').dt.strftime('%Y-%m-%d').fillna('').astype(
+            str)
+
+        df_personas_consolidados['fechanac'] = pd.to_datetime(df_personas_consolidados['fechanac'], errors='coerce')
+        today = pd.to_datetime('today').normalize()
+
+        def _calc_age(birth):
+            if pd.isna(birth):
+                return ''
+            return str(today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day)))
+
+        df_personas_consolidados['edad'] = df_personas_consolidados['fechanac'].apply(_calc_age)
+        df_personas_consolidados['fechanac'] = df_personas_consolidados['fechanac'].dt.strftime('%Y-%m-%d').fillna(
+            '').astype(str)
 
         print("Limpieza de datos completada.")
         df_familias_consolidados['longitud'] = df_familias_consolidados['longitud'].apply(limpiar_formato_longitud)
@@ -368,6 +451,8 @@ LEFT JOIN (
         df_familias_consolidados['fecha'] = pd.to_datetime(df_familias_consolidados['fecha'],
                                                            errors='coerce').dt.strftime('%Y-%m-%d').fillna('').astype(
             str)
+
+
 
         df_familias_consolidados['responsable_numero'] = (
             df_familias_consolidados['responsable_numero']
@@ -400,6 +485,10 @@ LEFT JOIN (
             df_distribucion_redes.set_index('TERRITORIO')['RED']
         ).fillna('')
 
+        df_personas_consolidados['redes'] = df_personas_consolidados['territorio'].map(
+            df_distribucion_redes.set_index('TERRITORIO')['RED']
+        ).fillna('')
+
         # quiero contar cuantos registros hay por estado
         total_rows = len(df_personas_consolidados)
 
@@ -422,7 +511,7 @@ LEFT JOIN (
             v.fecha 
         FROM {database}.visitasnegadas v 
 
-        LEFT JOIN {database}.ubicaciones u 
+        LEFT JOIN agsolutic_aps2024.ubicaciones u 
                ON v.ubicacion_id = u.id
 
         LEFT JOIN {database}.responsables r 
@@ -442,6 +531,14 @@ LEFT JOIN (
                 df_novedades_consolidado.iloc[:, i] = df_novedades_consolidado.iloc[:, i].astype(
                     str).str.strip().str.replace(r'[^\w\s]', '', regex=True)
 
+        df_novedades_consolidado['fecha'] = pd.to_datetime(df_novedades_consolidado['fecha'],
+                                                           errors='coerce').dt.strftime('%Y-%m-%d').fillna('').astype(
+            str)
+
+        df_novedades_consolidado['redes'] = df_novedades_consolidado['territorio'].map(
+            df_distribucion_redes.set_index('TERRITORIO')['RED']
+        ).fillna('')
+
 
         os.makedirs(F'reportes/{FE_REPORTE}/looker', exist_ok=True)
         df_personas_consolidados.to_csv(
@@ -454,8 +551,17 @@ LEFT JOIN (
             F'reportes/{FE_REPORTE}/looker/cosolidado_observaciones_{FE_REPORTE}.csv')
 
         # Convertir Timestamps a string
-        reescribir_hoja("1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI", "cosolidado_familias", df_familias_consolidados, client)
+        df_familias_consolidados['reporte_fecha'] = FE_REPORTE
+        df_personas_consolidados['reporte_fecha'] = FE_REPORTE
+        df_novedades_consolidado['reporte_fecha'] = FE_REPORTE
 
+        cargar_csv_a_bigquery(df_personas_consolidados, table_id="datos_aps.personas", id="aps-project-478903")
+        cargar_csv_a_bigquery(df_familias_consolidados, table_id="datos_aps.familias", id="aps-project-478903")
+        cargar_csv_a_bigquery(df_novedades_consolidado, table_id="datos_aps.novedades", id="aps-project-478903")
+
+        reescribir_hoja("1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI", "cosolidado_familias", df_familias_consolidados, client)
+        reescribir_hoja("1g6865j3cOGhkj6VAkfIqcJqScB4eWTXUqrZx16Czhuo", "cosolidado_personas", df_personas_consolidados, client)
+        reescribir_hoja("1Yr9gvmWQ7i6ANgI-9LAW8Yfwi6HScJfF7ll3nm0StTE", "cosolidado_novedades", df_novedades_consolidado, client)
 
     except Exception as e:
 
