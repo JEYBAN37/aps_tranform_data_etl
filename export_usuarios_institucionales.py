@@ -172,7 +172,7 @@ def registros_tipo_3(tipo_registro, df_usuarios , inicio_consecutivo):
         'tipo_registro': tipo_registro,
         'tipo_identificacion_identidad': 'CC',
         'numero_identificacion': fuente['N° CEDULA'].astype(str).str.split('.').str[0],
-        'aplicacion': '186',
+        'aplicacion': '45',
         'indicador': 'A',
         'perfil': '1274',
     })
