@@ -303,7 +303,7 @@ def registro_tipo_2(tipo_registro, propiedades, df_info_general):
         'equpo_basico':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio'].replace('0', 'MT', 1)) + 'EBS' +  f'{1:03}',
         'nit_prestador': propiedades[4],
         'tipo_documento_responsable': convertidor_tipo_cedulas(row['tipodocr']),
-        'numero_documento_responsable': str(row['microterritorio'].replace('0', 'MT', 1)).replace(',', '').strip(),
+        'numero_documento_responsable': safe_str(row.get('docr')).replace(',', ''),
         'perfil': limpiar_tildes(row['profesion']) if pd.notna(row.get('profesion')) and str(
             row.get('profesion')).strip() != '' and str(row.get('profesion')).strip().upper() != 'APSE' else 'OTRO',
         'codigo':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio'].replace('0', 'MT', 1)) + 'EBS' +  f'{1:03}H' +contador_nomenclatura_familia(_) + f'F{contador_nomenclatura_familia(_)}' + contador_nomenclatura_hogar(_),
