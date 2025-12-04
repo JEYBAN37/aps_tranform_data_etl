@@ -34,10 +34,10 @@ PROPIEDADES_TIPO_1 = [
     # 0
 TIPO_REGISTROS = ['1','2', '3']
     # 3
-FECHA_INICIAL = '2025-11-10'
+FECHA_INICIAL = '2025-11-23'
 
     # 4
-FECHA_FINAL = '2025-11-10'
+FECHA_FINAL = '2025-11-23'
 
 PROPIEDADES_TIPO_2 = [
         # 2
@@ -311,7 +311,7 @@ def query_familias (territorio,microterritorio):
         FROM agsolutic_aps2024.adolescencias
         GROUP BY familia_id
     ) a ON a.familia_id = f.id
-        WHERE u.territorio IN ('T01','T02','T03','T04','T05','T06','T07','T08','T09','T10','T11','T12','T13','T14','T15') AND u.cod_microterritorio IN {microterritorio}
+        WHERE u.territorio IN ('T02','T03') AND u.cod_microterritorio IN {microterritorio}
         ORDER BY s.id
         """
 
