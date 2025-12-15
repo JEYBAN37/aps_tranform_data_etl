@@ -1,5 +1,5 @@
 MICROTERRITORIO = ('001','002','003','004')
-TERRITORIO = 'T03'
+
 
 PROPIEDADES_TIPO_1 = [
     # 1
@@ -34,10 +34,10 @@ PROPIEDADES_TIPO_1 = [
     # 0
 TIPO_REGISTROS = ['1','2', '3']
     # 3
-FECHA_INICIAL = '2025-12-29'
+FECHA_INICIAL = '2025-12-08'
 
     # 4
-FECHA_FINAL = '2025-12-29'
+FECHA_FINAL = '2025-12-08'
 
 PROPIEDADES_TIPO_2 = [
         # 2
@@ -311,10 +311,11 @@ def query_familias (territorio,microterritorio):
         FROM agsolutic_aps2024.adolescencias
         GROUP BY familia_id
     ) a ON a.familia_id = f.id
-        WHERE u.territorio IN ('T02','T03') AND u.cod_microterritorio IN {microterritorio}
+        WHERE u.territorio IN ('T53','T54') AND u.cod_microterritorio IN {microterritorio} AND r.numero != '0'
         ORDER BY s.id
         """
 
+TERRITORIO = 'T53-T54'
 def traer_joven_adultos(id_list_sql):
     return f""" 
         SELECT 
@@ -351,6 +352,122 @@ def traer_joven_adultos(id_list_sql):
          j.familia_id
         FROM agsolutic_aps2024.familias f
         LEFT JOIN agsolutic_aps2024.juventudadultos j
+        ON f.id = j.familia_id
+        WHERE f.id IN ({id_list_sql})
+        
+        UNION ALL
+        
+        SELECT 
+         j.primernombre,
+         j.segundonombre,
+         j.primerapellido,
+         j.segundoapellido,
+         j.tipodocumento,
+         j.numerodoc,
+         j.fechanac,
+         j.sexo,
+         '' AS gestacion,
+         j.rol,
+         '' AS educacion,
+         '' AS niveleducativo,
+         j.regimen,
+         '' AS cursovida,
+         '' AS saludalternativa,
+         j.discapacidad,
+         j.peso,
+         j.talla,
+         j.indicemasacorporal,
+         j.condicioncronica,
+         j.canalizacionuno,
+         j.canalizaciondos,
+         j.canalizaciontres,
+         j.estadocanalizacion,
+         j.condicioncronica,
+         '' AS ocupacion,
+         j.etnia,
+         j.edad,
+         '' AS riesgopsicosocial,
+         j.sopechamaltrato,
+         j.familia_id
+        FROM agsolutic_aps2024.familias f
+        LEFT JOIN agsolutic_aps2024.infantils j
+        ON f.id = j.familia_id
+        WHERE f.id IN ({id_list_sql})
+        
+        UNION ALL
+        SELECT 
+         j.primernombre,
+         j.segundonombre,
+         j.primerapellido,
+         j.segundoapellido,
+         j.tipodocumento,
+         j.numerodoc,
+         j.fechanac,
+         j.sexo,
+         '' AS gestacion,
+         j.rol,
+         j.educacion,
+         '' AS niveleducativo,
+         j.regimen,
+         '' AS cursovida,
+         '' AS saludalternativa,
+         j.discapacidad,
+         j.peso,
+         j.talla,
+         '' AS indicemasacorporal,
+         j.condicioncronica,
+         j.canalizacionuno,
+         j.canalizaciondos,
+         j.canalizaciontres,
+         j.estadocanalizacion,
+         '' AS condicioncronica,
+         '' AS ocupacion,
+         j.etnia,
+         j.edad,
+         '' AS riesgopsicosocial,
+         '' AS sopechamaltrato,
+         j.familia_id
+        FROM agsolutic_aps2024.familias f
+        LEFT JOIN agsolutic_aps2024.primerainfancias j
+        ON f.id = j.familia_id
+        WHERE f.id IN ({id_list_sql})
+        
+        UNION ALL
+        
+        SELECT 
+         j.primernombre,
+         j.segundonombre,
+         j.primerapellido,
+         j.segundoapellido,
+         j.tipodocumento,
+         j.numerodoc,
+         j.fechanac,
+         j.sexo,
+         j.gestacion,
+         j.rol,
+         j.educacion,
+         '' AS niveleducativo,
+         j.regimen,
+         j.cursovida,
+         j.saludalternativa,
+         j.discapacidad,
+         j.peso,
+         j.talla,
+         j.indicemasacorporal,
+         j.condicioncronica,
+         j.canalizacionuno,
+         j.canalizaciondos,
+         j.canalizaciontres,
+         j.estadocanalizacion,
+         j.condicioncronica,
+         '' AS ocupacion,
+         j.etnia,
+         j.edad,
+         j.riesgopsicosocial,
+         j.sopechamaltrato,
+         j.familia_id
+        FROM agsolutic_aps2024.familias f
+        LEFT JOIN agsolutic_aps2024.adolescencias j
         ON f.id = j.familia_id
         WHERE f.id IN ({id_list_sql})
         """
