@@ -75,6 +75,8 @@ def main():
                 t.* ,
                 s.id as sociambiental_id,
                 s.fecha,
+                s.barriovereda,
+                s.direccion,
                 f.celular,
                 s.vivienda,
                 s.apellidosfamilia,

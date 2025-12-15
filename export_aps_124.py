@@ -9,6 +9,7 @@ import numpy as np
 from datetime import datetime
 import unicodedata
 import mysql.connector
+from db_dtypes.pandas_backports import nanall
 
 from credenciales import DRIVER_MYSQL, MYSQL_REPLICA_USER, MYSQL_APS, DRIVER_PATH, MYSQL_REPLICA_PASSWORD, \
     DATABASE_APS2024
@@ -21,15 +22,18 @@ from propiedades_aps124 import DISCAPACIDAD, ANIMALES_PERMITIDO, NIVEL_ESTUDIO, 
 
 
 def limpiar_tildes(texto):
-    print("paso tildes")
-    if texto is None or pd.isna(texto):
-        return ''
-    texto = str(texto).strip()  # Remove leading and trailing spaces
-    texto = ''.join(
-        c for c in unicodedata.normalize('NFD', texto)
-        if unicodedata.category(c) != 'Mn'
-    )
-    return re.sub(r'[-:.;,#=_É·°"✓*+)(|/Ñ\s]', '', texto)
+    try :
+        print("paso tildes")
+        if texto is None or pd.isna(texto):
+            return ''
+        texto = str(texto).strip()  # Remove leading and trailing spaces
+        texto = ''.join(
+            c for c in unicodedata.normalize('NFD', texto)
+            if unicodedata.category(c) != 'Mn'
+        )
+        return re.sub(r'[-:.;,#=_É·°"^ª$@&✓*+!?)(|/Ñ\s]', '', texto)
+    except (ValueError, TypeError, NoneType):
+        return 'REVISAR'
 
 def limpiar_formato_longitud(valor):
     try:
@@ -66,7 +70,7 @@ def limpiar_formato_longitud(valor):
             return str(valor_float)
         else:
             return np.nan
-    except (ValueError, TypeError, IndexError):
+    except Exception:
         return np.nan
 
 def limpiar_formato_latitud(valor):
@@ -94,7 +98,7 @@ def limpiar_formato_latitud(valor):
             return str(float(f"{valor_float:.6f}"))
         else:
             return np.nan
-    except (ValueError, TypeError, IndexError):
+    except Exception:
         return np.nan
 
 def registro_tipo_1(tipo_registro, propiedades, fecha_inicial,fecha_final, num_total_registros):
@@ -142,7 +146,11 @@ def convertidor_tipo_cedulas(param):
             return 'CC'
         elif(param == 'TI'):
             return 'TI'
-    except (ValueError, TypeError):
+        elif(param == 'RC'):
+            return 'RC'
+        else:
+            return 'CC'
+    except Exception:
         return 'CC'
 
 def convertidor_vivienda(param):
@@ -150,7 +158,7 @@ def convertidor_vivienda(param):
         param = int(param.split('.')[0])
         print("paso vivienda")
         return param
-    except (ValueError, TypeError):
+    except Exception:
         return 12
 
 def convertidor_material(param, default):
@@ -216,7 +224,7 @@ def contar_animales(param , num_1 , num_2):
          contador += 1
 
         return contador
-    except (ValueError, TypeError):
+    except Exception:
         return 0
 
 def calculo_apgar(param):
@@ -274,7 +282,7 @@ def convertidor_poblacion_vulnerable(param, poblacion):
         if poblacion in array:
             return 1
         return 2
-    except (ValueError, TypeError):
+    except Exception:
         return 2
 
 def registro_tipo_2(tipo_registro, propiedades, df_info_general):
@@ -288,7 +296,7 @@ def registro_tipo_2(tipo_registro, propiedades, df_info_general):
         'cod_municipio': propiedades[3],
         'cod_territorio': row['territorio'],
         'cod_microterritorio': row['microterritorio'].replace('0', 'MT', 1),
-        'nombre_territorio': row['nombre_barrio'].split('T')[0].strip() if 'T' in row['nombre_barrio'] else row['nombre_barrio'],
+        'nombre_territorio': row['nombre_barrio'].split(' T')[0].strip() if ' T' in row['nombre_barrio'] else row['nombre_barrio'],
         'direccion': limpiar_tildes(row['direccion']),
         'longitud':limpiar_formato_longitud(row['longitud']),
         'latitud': limpiar_formato_latitud(row['latitud']),
@@ -303,7 +311,7 @@ def registro_tipo_2(tipo_registro, propiedades, df_info_general):
         'equpo_basico':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio'].replace('0', 'MT', 1)) + 'EBS' +  f'{1:03}',
         'nit_prestador': propiedades[4],
         'tipo_documento_responsable': convertidor_tipo_cedulas(row['tipodocr']),
-        'numero_documento_responsable': safe_str(row.get('docr')).replace(',', ''),
+        'numero_documento_responsable': safe_str(row.get('docr')),
         'perfil': limpiar_tildes(row['profesion']) if pd.notna(row.get('profesion')) and str(
             row.get('profesion')).strip() != '' and str(row.get('profesion')).strip().upper() != 'APSE' else 'OTRO',
         'codigo':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio'].replace('0', 'MT', 1)) + 'EBS' +  f'{1:03}H' +contador_nomenclatura_familia(_) + f'F{contador_nomenclatura_familia(_)}' + contador_nomenclatura_hogar(_),
@@ -472,7 +480,7 @@ def evaluacion_poblacional(param , edad = None ,discapacidad = None, gestante = 
            return '7'
 
         return '7'
-    except (ValueError, TypeError):
+    except Exception:
         return '8'
 
 def limpiar_formato_tala(param):
@@ -480,7 +488,7 @@ def limpiar_formato_tala(param):
     try:
         if pd.isna(param):
             return ''
-        resultado = re.sub(r'[a-zA-Z.,\s]', '', param)
+        resultado = re.sub(r'[a-zA-Z’Ñ_/.,\s]', '', param)
 
         if len(resultado) <= 2:
             param = resultado + '0'
@@ -514,6 +522,10 @@ def limpiar_formato_peso(param):
             return f"{int(resultado) / 10:.1f}"
         elif len(resultado) <= 2:
             return resultado + '.0'
+        elif resultado == '':
+            return ''
+        elif resultado == '0':
+            return ''
         return resultado + '.0'
     except Exception:
         return ''
@@ -536,8 +548,15 @@ def registros_tipo_3(tipo_registro, df_personas, df_familias=None,valor_rango=1)
     # quitar los None
     df_personas = df_personas.replace('None', np.nan)
 
-    # quitar none
+    # quitar none en familia_id
     df_personas = df_personas.dropna(subset=['familia_id'])
+
+    # quitar filas cuyo primer_nombre sea None o cadena vacía (si existe la columna)
+    if 'primer_nombre' in df_personas.columns:
+        df_personas['primer_nombre'] = df_personas['primer_nombre'].astype(object).apply(
+            lambda v: None if pd.isna(v) else str(v).strip())
+        df_personas = df_personas.dropna(subset=['primer_nombre'])
+        df_personas = df_personas[df_personas['primer_nombre'] != '']
 
     df_merged = pd.merge(
         df_personas,
@@ -547,6 +566,7 @@ def registros_tipo_3(tipo_registro, df_personas, df_familias=None,valor_rango=1)
         how='left',  # 👈 Trae todas las personas aunque no tengan familia
         validate="many_to_one"  # Cada persona pertenece a una sola familia
     )
+
 
     formato = pd.DataFrame([{
         'id_familia_db': row['id_familia_db'],
@@ -560,7 +580,7 @@ def registros_tipo_3(tipo_registro, df_personas, df_familias=None,valor_rango=1)
         'segundo_apellido': limpiar_tildes(row['segundo_apellido']) if pd.notna(row['segundo_apellido']) and row[
             'segundo_apellido'] != '' else '',
         'tipo_documento': convertidor_tipo_cedulas(row.get('tipodoc')),
-        'numero_documento': safe_str(row.get('numerodoc')).replace(',', ''),
+        'numero_documento': limpiar_tildes(safe_str(row.get('numerodoc'))),
         'fecha_nacimiento': pd.to_datetime(row['fechanac']).strftime('%Y-%m-%d') if pd.notna(row['fechanac']) else '',
         'sexo': covertir_sexo(row.get('sexo')),
         'gestante': definir_pregunta_dos_opciones(row.get('gestacion'), 'SI'),
@@ -699,6 +719,8 @@ def main():
         # Crear un gráfico de torta para la columna 'hacinamiento'
         df_familias = df_familias[df_familias['total_personas_cursos_vida'] > 0]
         df_familias = df_familias[df_familias['estado'] == 'SOCIOAMBIENTAL_OK']
+        df_familias.loc[:, 'id_familia_db'] = df_familias['id_familia_db'].apply(lambda v: '' if pd.isna(v) else (str(int(float(v))) if re.match(r'^\s*\d+(\.0+)?\s*$', str(v)) else str(v).strip()))
+
 
         postulados_tipo_2, falla_cordenadas , responsables_malos = registro_tipo_2(TIPO_REGISTROS[1], PROPIEDADES_TIPO_2, df_familias.drop_duplicates(subset=['id_familia_db']))
 
@@ -706,12 +728,12 @@ def main():
         id_list_sql = ', '.join(map(str, id_list))  # Convert to a string for SQL
         query_personas_adultas = ejecutar_consulta_mysql(traer_joven_adultos(id_list_sql), cursor)
         df_personas = pd.DataFrame( query_personas_adultas, columns= COLUMNAS_PERSONAS_JOVENADULTO)  # DataFrame vacío para personas, ya que no se usa en este ejemplo
-
-        df_familias_a_crear = postulados_tipo_2[postulados_tipo_2['id_familia_db'].isin(df_personas['familia_id'].unique())]
+        df_personas.loc[:, 'familia_id'] = df_personas['familia_id'].apply(lambda v: '' if pd.isna(v) else (str(int(float(v))) if re.match(r'^\s*\d+(\.0+)?\s*$', str(v)) else str(v).strip()))
+        df_familias_a_crear = postulados_tipo_2[postulados_tipo_2['id_familia_db'].isin(df_personas['familia_id'])]
         # agregar consecutivo de registro
         df_familias_a_crear.insert(2, 'consecutivo_registro', range(1, len(df_familias_a_crear) + 1))
 
-        df_familias_sin_personas = df_familias[~df_familias['id_familia_db'].isin(df_personas['familia_id'].unique())]
+        df_familias_sin_personas = postulados_tipo_2[~postulados_tipo_2['id_familia_db'].isin(df_personas['familia_id'])]
 
         tipo_3 = registros_tipo_3(TIPO_REGISTROS[2], df_personas, df_familias_a_crear, len(df_familias_a_crear) + 1 )
         tipo_1 = registro_tipo_1(TIPO_REGISTROS[0], PROPIEDADES_TIPO_1, FECHA_INICIAL, FECHA_FINAL, len(tipo_3) + len(df_familias_a_crear))
@@ -727,6 +749,7 @@ def main():
 
         tipo_3 = tipo_3.iloc[:, 1:]  # Eliminar la primera columna
         tipo_2 = df_familias_a_crear.iloc[:, 1:]
+
 
         consolidado = codificar_formato(tipo_1) + '\n'
         consolidado += codificar_formato(tipo_2) + '\n'
