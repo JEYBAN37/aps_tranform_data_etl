@@ -117,7 +117,7 @@ def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo):
         'tipo_registro': tipo_registro,
         'id_recurso': row['id_recurso'],
         'nit': nit,
-        'indicador': 'I',
+        'indicador': row['indicador'],
         'codigo_adminitarativo':'1',
         'numero_contrato': row['numero_contrato'],
         'tipo_contrato': '1',
@@ -203,24 +203,24 @@ def main():
     # 2
     '900091143',
     # 3
-    '2025-10-01',
+    '2025-11-01',
     # 4
-    '2025-10-31',
+    '2025-11-30',
     ]
 
     PROPIEDADES_TIPO_2 = [
     # 1
-        ['ID2197624614'], # RESOLUCION
+        ['ID2197624614'], # RESOLUCION ID2087325712 873
     # 2
-        ['I'],
+        ['NA'], # I
     # 3
-        '4',
+        '', # 4
     # 4
-        ['123004'],
+        [''], # 0132025
     # 5
-        ['2025-05-27'],
+        [''], # 2025-08-14,
     # 6
-        ['1678951650.00'],
+        [''], # 14092085000.00
     ]
 
     PROPIEDADES_TIPO_3 = [
@@ -240,9 +240,9 @@ def main():
         ]
     ]
 
-    url = 'activos/reporte_ser/RESOLUCION_1976_TIPO_3.xlsx'
-    ur_polisa = 'activos/polisa_1976.xlsx'
-    url_flujo = 'activos/reporte_ser/RESOLUCION_1976_TIPO_5.xlsx'
+    url = 'activos/reporte_ser/RESOLUCION_1976_actualizacion_TIPO_3.xlsx'
+    ur_polisa = 'activos/polisa_1397_actualizacion.xlsx'
+    url_flujo = 'activos/reporte_ser/RESOLUCION_1976_actualizacion_TIPO_5.xlsx'
     url_rendimiento = 'activos/rendimientos_1976.xlsx'
 
 
@@ -300,7 +300,7 @@ def main():
     consolidado += codificar_formato(tipo_6) + '\n'
     consolidado += codificar_formato(tipo_7)
 
-    file_name = f"reportes/SER124DREC20251031NI000900091143{PROPIEDADES_TIPO_2[0][0]}.txt"
+    file_name = f"reportes/SER124DREC20251130NI000900091143{PROPIEDADES_TIPO_2[0][0]}.txt"
 
     # Guardar el archivo en la misma carpeta
     with open(file_name, 'w', encoding='utf-8') as f:
