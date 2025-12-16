@@ -210,17 +210,17 @@ def main():
 
     PROPIEDADES_TIPO_2 = [
     # 1
-        ['ID2197624614'], # RESOLUCION ID2087325712 873
+        ['ID2087325712'], # RESOLUCION ID2087325712 873
     # 2
-        ['NA'], # I
+        ['I'], # I
     # 3
-        '', # 4
+        '4', # 4
     # 4
-        [''], # 0132025
+        ['0132025'], # 0132025
     # 5
-        [''], # 2025-08-14,
+        ['2025-08-14'], # 2025-08-14,
     # 6
-        [''], # 14092085000.00
+        ['14092085000.00'], # 14092085000.00
     ]
 
     PROPIEDADES_TIPO_3 = [
@@ -240,9 +240,9 @@ def main():
         ]
     ]
 
-    url = 'activos/reporte_ser/RESOLUCION_1976_actualizacion_TIPO_3.xlsx'
+    url = 'activos/reporte_ser/RESOLUCION_873_TIPO_3.xlsx'
     ur_polisa = 'activos/polisa_1397_actualizacion.xlsx'
-    url_flujo = 'activos/reporte_ser/RESOLUCION_1976_actualizacion_TIPO_5.xlsx'
+    url_flujo = 'activos/reporte_ser/RESOLUCION_873_TIPO_5.xlsx'
     url_rendimiento = 'activos/rendimientos_1976.xlsx'
 
 
