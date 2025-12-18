@@ -48,7 +48,31 @@ def convertidor_objeto(row):
 
     return row_sin_caracteres_especiales[:300]  # Limitar a 300 caracteres
 
-def df_tipo_3(tipo_registro, inicio_consecutivo, propiedades_tipo_3, df_personas, nit):
+def df_tipo_3(tipo_registro, inicio_consecutivo, propiedades_tipo_3, df_personas, nit, recurso):
+    formato = pd.DataFrame()
+
+    if df_personas.empty:
+        formato = pd.DataFrame([{
+            'tipo_registro': tipo_registro,
+            'id_recurso': recurso,
+            'nit': nit,
+            'indicador': 'NA',
+            'tipo_contrato': '',
+            'numero_contrato': '',
+            'fecha_inicio_contrato': '',
+            'fecha_termino_contrato': '',
+            'objeto_contrato': '',
+            'valor': '',
+            'contratista_tipo_identificacion': '',
+            'numero_identificacion': '',
+            'nombre_contratista': '',
+            'tipo_doc_supervisor': '',
+            'numero_supervisor': '',
+            'nombre_supervisor': '',
+        }])
+
+        return formato
+
     formato = pd.DataFrame([{
         'tipo_registro': tipo_registro,
         'id_recurso': row['id_recurso'],
@@ -109,7 +133,26 @@ def obtenert_porcentaje(df, param, param1):
     return "0.00"
 
 
-def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo):
+def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo, recurso):
+
+    if df.empty:
+        formato = pd.DataFrame([{
+            'tipo_registro': tipo_registro,
+            'id_recurso': recurso,
+            'nit': nit,
+            'indicador': 'NA',
+            'codigo_adminitarativo': '',
+            'numero_contrato': '',
+            'tipo_contrato': '',
+            'numero_acta': '',
+            'fecha_acta': '',
+            'valor_acta': '',
+            'valor_pagado': '',
+            'porcentaje': '',
+            'conlusion': '',
+        }])
+        return formato
+
     # remove fully empty rows (all NaN) and rows where every value is empty/whitespace
     df = df.dropna(how='all').reset_index(drop=True)
     df = df[~df.apply(lambda r: r.astype(str).str.strip().eq('').all(), axis=1)].reset_index(drop=True)
@@ -210,17 +253,17 @@ def main():
 
     PROPIEDADES_TIPO_2 = [
     # 1
-        ['ID2087325712'], # RESOLUCION ID2087325712 873
+        ['ID2197624614'], # RESOLUCION 1976
     # 2
-        ['I'], # I
+        ['I'],
     # 3
-        '4', # 4
+        '4',
     # 4
-        ['0132025'], # 0132025
+        ['123004'],
     # 5
-        ['2025-08-14'], # 2025-08-14,
+        ['2025-05-27'],
     # 6
-        ['14092085000.00'], # 14092085000.00
+        ['1678951650.00'],
     ]
 
     PROPIEDADES_TIPO_3 = [
@@ -240,9 +283,9 @@ def main():
         ]
     ]
 
-    url = 'activos/reporte_ser/RESOLUCION_873_TIPO_3.xlsx'
+    url = 'activos/reporte_ser/RESOLUCION_1976_REINTEGRO_TIPO_3.xlsx'
     ur_polisa = 'activos/polisa_1397_actualizacion.xlsx'
-    url_flujo = 'activos/reporte_ser/RESOLUCION_873_TIPO_5.xlsx'
+    url_flujo = 'activos/reporte_ser/RESOLUCION_1976_REINTEGRO_TIPO_3.xlsx'
     url_rendimiento = 'activos/rendimientos_1976.xlsx'
 
 
@@ -283,9 +326,9 @@ def main():
 
 
     tipo_2 = df_tipo_2(TIPO_REGISTROS[1], PROPIEDADES_TIPO_2, PROPIEDADES_TIPO_1[1])
-    tipo_3 = df_tipo_3(TIPO_REGISTROS[2],len(tipo_2),PROPIEDADES_TIPO_3,df,PROPIEDADES_TIPO_1[1])  # Suponiendo que no hay registros de tipo 3 por ahora
+    tipo_3 = df_tipo_3(TIPO_REGISTROS[2],len(tipo_2),PROPIEDADES_TIPO_3,df,PROPIEDADES_TIPO_1[1],PROPIEDADES_TIPO_2[0][0])  # Suponiendo que no hay registros de tipo 3 por ahora
     tipo_4 = df_tipo_4(TIPO_REGISTROS[3], df_recurso_4, PROPIEDADES_TIPO_1[1], len(tipo_2) + len(tipo_3),PROPIEDADES_TIPO_2[0][0] )  # Suponiendo que no hay registros de tipo 4 por ahora
-    tipo_5 = df_tipo_5(TIPO_REGISTROS[4], df_recurso_5, PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4))  # Suponiendo que no hay registros de tipo 5 por ahora
+    tipo_5 = df_tipo_5(TIPO_REGISTROS[4], df_recurso_5, PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4),PROPIEDADES_TIPO_2[0][0])  # Suponiendo que no hay registros de tipo 5 por ahora
     tipo_6 = df_tipo_6(TIPO_REGISTROS[5], PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5),PROPIEDADES_TIPO_2[0][0])
     tipo_7 = df_tipo_7(TIPO_REGISTROS[6], PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5) + len(tipo_6),df_recurso_7,PROPIEDADES_TIPO_2[0][0])
     # Suponiendo que no hay registros de tipo 6 por ahora
