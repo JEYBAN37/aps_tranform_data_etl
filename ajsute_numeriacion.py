@@ -1,5 +1,5 @@
 def main():
-    ruta = "./reportes/2025-12-10/REPORTES/consolidado/APS124CCFP20251208NI000900091143.txt"
+    ruta = "./reportes/2025-12-26/CONSOLIDADO/APS124CCFP20251222NI000900091143.txt"
 
     # Leer líneas
     with open(ruta, "r", encoding="utf-8") as f:
@@ -27,3 +27,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
