@@ -34,10 +34,10 @@ PROPIEDADES_TIPO_1 = [
     # 0
 TIPO_REGISTROS = ['1','2', '3']
     # 3
-FECHA_INICIAL = '2025-12-08'
+FECHA_INICIAL = '2025-12-22'
 
     # 4
-FECHA_FINAL = '2025-12-08'
+FECHA_FINAL = '2025-12-22'
 
 PROPIEDADES_TIPO_2 = [
         # 2
@@ -311,11 +311,11 @@ def query_familias (territorio,microterritorio):
         FROM agsolutic_aps2024.adolescencias
         GROUP BY familia_id
     ) a ON a.familia_id = f.id
-        WHERE u.territorio IN ('T53','T54') AND u.cod_microterritorio IN {microterritorio} AND r.numero != '0'
+        WHERE u.territorio IN ('T65') AND u.cod_microterritorio IN {microterritorio} AND r.numero != '0'
         ORDER BY s.id
         """
 
-TERRITORIO = 'T53-T54'
+TERRITORIO = 'T65'
 def traer_joven_adultos(id_list_sql):
     return f""" 
         SELECT 

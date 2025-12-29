@@ -11,37 +11,58 @@ from mysql_conector import ejecutar_consulta_mysql
 from datetime import datetime
 import gspread
 
-def cargar_csv_a_bigquery(df, table_id = "TU_PROYECTO.TU_DATASET.TU_TABLA",id = "TU_PROYECTO"):
+def cargar_csv_a_bigquery(df, table_id, project_id, columnas_fecha=None):
+    df = df.copy()
+
+    # Normalizar nombres de columnas
+    df.columns = df.columns.astype(str)
+
+    # Quitar columnas duplicadas
+    df = df.loc[:, ~df.columns.duplicated()]
+
+    # Resetear índice (CRÍTICO)
+    df.reset_index(drop=True, inplace=True)
+
+    # Convertir columnas de fecha explícitamente
+    if columnas_fecha:
+        for col in columnas_fecha:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], errors='coerce')
+
+    # Convertir SOLO objetos que no sean fecha
+    for col in df.columns:
+        if df[col].dtype == 'object':
+            df[col] = df[col].astype(str)
+
     to_gbq(
         df,
         destination_table=table_id,
-        project_id=id,
-        if_exists="replace",  # replace | append | fail
+        project_id=project_id,
+        if_exists="replace"
     )
 
-
 def reescribir_hoja(sheet_id, sheet_name, df, client):
-    # Normalizar DataFrame y evitar valores nulos que rompan la serialización
-    df = df.copy().fillna("")
+    df = df.copy()
+
     sheet = client.open_by_key(sheet_id).worksheet(sheet_name)
     sheet.clear()
 
-    # Convertir columnas datetime / Timestamp a string para que sean JSON serializables
     for col in df.columns:
-        try:
-            if pd.api.types.is_datetime64_any_dtype(df[col]):
-                df[col] = df[col].dt.strftime('%Y-%m-%d %H:%M:%S').fillna("").astype(str)
-            else:
-                # También manejar valores individuales que sean pd.Timestamp u objetos datetime
-                df[col] = df[col].apply(lambda x: x.strftime('%Y-%m-%d %H:%M:%S') if isinstance(x, (pd.Timestamp, datetime)) else ("" if pd.isna(x) else str(x)))
-        except Exception:
-            # En caso de cualquier excepción, forzar a string seguro
-            df[col] = df[col].apply(lambda x: "" if pd.isna(x) else str(x))
+        # Caso 1: columna datetime
+        if pd.api.types.is_datetime64_any_dtype(df[col]):
+            df[col] = df[col].dt.strftime('%Y-%m-%d %H:%M:%S')
+            df[col] = df[col].where(df[col].notna(), "")
 
-    # Preparar los datos para Google Sheets: cabecera + filas
+        # Caso 2: columna no datetime
+        else:
+            df[col] = df[col].map(
+                lambda x:
+                    "" if x is None or (isinstance(x, float) and pd.isna(x))
+                    else x.strftime('%Y-%m-%d %H:%M:%S') if isinstance(x, (pd.Timestamp, datetime))
+                    else str(x)
+            )
+
     data = [df.columns.tolist()] + df.values.tolist()
-
-    # Usar argumentos nombrados para evitar la deprecation warning (values primero o named args)
     sheet.update(range_name="A1", values=data)
 
 
@@ -130,8 +151,11 @@ def main():
         canalizaciontres,
         sopechamaltrato,
         'NO APLICA' AS desarrolloinfantil,
-        'Adulto' AS cursodevida
+        'Adulto' AS cursodevida,
+        c.nombre,
+        estadocanalizacion
     FROM {database}.juventudadultos
+    LEFT JOIN {database}.canalizaciones c ON c.id = juventudadultos.canalizacion_id
 
     UNION ALL
 
@@ -170,9 +194,12 @@ def main():
         canalizaciontres,
         'NO APLICA' AS sopechamaltrato,
         desarrolloinfantil,
-        'Infante' AS cursodevida
+        'Infante' AS cursodevida,
+         c.nombre,
+         estadocanalizacion
     FROM {database}.infantils
-
+    LEFT JOIN {database}.canalizaciones c ON c.id = infantils.canalizacion_id
+    
     UNION ALL
 
     SELECT 
@@ -210,8 +237,11 @@ def main():
         canalizaciontres,
         'NO APILCA' AS sopechamaltrato,
         desarrolloinfantil,
-        'PrimeraInfancia' AS cursodevida
+        'PrimeraInfancia' AS cursodevida,
+        c.nombre,
+        estadocanalizacion
     FROM {database}.primerainfancias
+    LEFT JOIN {database}.canalizaciones c ON c.id = primerainfancias.canalizacion_id
 
     UNION ALL
 
@@ -250,8 +280,11 @@ def main():
         canalizaciontres,
         sopechamaltrato,
         'NO APLICA' AS desarrolloinfantil,
-        'Adolescencia' AS cursodevida
+        'Adolescencia' AS cursodevida,
+        c.nombre,
+        estadocanalizacion
     FROM {database}.adolescencias
+    LEFT JOIN {database}.canalizaciones c ON c.id = adolescencias.canalizacion_id
 ) t
             LEFT JOIN {database}.familias f ON f.id = t.familia_id
             LEFT JOIN {database}.sociambientals s ON f.sociambiental_id = s.id 
@@ -323,7 +356,23 @@ def main():
         WHEN f.sociambiental_id IS NULL THEN 'SIN_SOCIOAMBIENTAL_ID'
         WHEN s.id IS NULL THEN 'SOCIOAMBIENTAL_INVALIDO'
         ELSE 'SOCIOAMBIENTAL_OK'
-    END AS estado
+    END AS estado,
+    f.numerodocumento AS representante_doc_id,
+    f.rol,
+    f.celular,
+    s.estrato,
+    s.numerohabitantes,
+    f.tipofamilia,
+    f.cursovidafamilia,
+    s.riesgoexterno,
+    s.vacunamascotas,
+    s.vector,
+    s.riesgo,
+    f.antecedenteenfermedad,
+    f.riesgopsicosocial,
+    f.estilodevidapredominante,
+    f.cepilladodientes,
+    f.higiene
 
 FROM {database}.familias f
 
@@ -433,6 +482,9 @@ LEFT JOIN (
         df_personas_consolidados['edad'] = df_personas_consolidados['fechanac'].apply(_calc_age)
         df_personas_consolidados['fechanac'] = df_personas_consolidados['fechanac'].dt.strftime('%Y-%m-%d').fillna(
             '').astype(str)
+
+        df_personas_consolidados['doc_id'] = df_personas_consolidados['doc_id'].astype(str).str.strip().str.replace(
+            r'\D+', '', regex=True)
 
         print("Limpieza de datos completada.")
         df_familias_consolidados['longitud'] = df_familias_consolidados['longitud'].apply(limpiar_formato_longitud)
@@ -557,9 +609,12 @@ LEFT JOIN (
         df_personas_consolidados['reporte_fecha'] = FE_REPORTE
         df_novedades_consolidado['reporte_fecha'] = FE_REPORTE
 
-        cargar_csv_a_bigquery(df_personas_consolidados, table_id="datos_aps.personas", id="aps-project-478903")
-        cargar_csv_a_bigquery(df_familias_consolidados, table_id="datos_aps.familias", id="aps-project-478903")
-        cargar_csv_a_bigquery(df_novedades_consolidado, table_id="datos_aps.novedades", id="aps-project-478903")
+        print(df_familias_consolidados.head())
+        print(df_familias_consolidados.shape)
+
+        cargar_csv_a_bigquery(df_personas_consolidados, table_id="datos_aps.personas",project_id="aps-project-478903",columnas_fecha=['fechanac','fecha','reporte_fecha'])
+        cargar_csv_a_bigquery(df_familias_consolidados, table_id="datos_aps.familias", project_id="aps-project-478903",columnas_fecha=['date','fecha','reporte_fecha'])
+        cargar_csv_a_bigquery(df_novedades_consolidado, table_id="datos_aps.novedades", project_id="aps-project-478903",columnas_fecha=['fecha','reporte_fecha'])
 
         reescribir_hoja("1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI", "cosolidado_familias", df_familias_consolidados, client)
         reescribir_hoja("1g6865j3cOGhkj6VAkfIqcJqScB4eWTXUqrZx16Czhuo", "cosolidado_personas", df_personas_consolidados, client)
