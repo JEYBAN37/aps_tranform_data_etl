@@ -1,15 +1,18 @@
 import os
+import time
 
 import mysql.connector
 import pandas as pd
 from google.oauth2.service_account import Credentials
 from pandas.io.gbq import to_gbq
-
 from credenciales import MYSQL_APS, MYSQL_REPLICA_USER, DATABASE_APS2024, MYSQL_REPLICA_PASSWORD, DATABASE
 from export_aps_124 import limpiar_formato_latitud, limpiar_formato_longitud
 from mysql_conector import ejecutar_consulta_mysql
 from datetime import datetime
 import gspread
+import firebase_admin
+from firebase_admin import credentials, firestore
+
 
 def cargar_csv_a_bigquery(df, table_id, project_id, columnas_fecha=None):
     df = df.copy()
@@ -65,6 +68,71 @@ def reescribir_hoja(sheet_id, sheet_name, df, client):
     data = [df.columns.tolist()] + df.values.tolist()
     sheet.update(range_name="A1", values=data)
 
+def actualizar_cedulas_firebase(df_personas, cred):
+    firebase_admin.initialize_app(cred)
+
+    db = firestore.client()
+    collection = db.collection("personas")
+
+    BATCH_SIZE = 200
+    SLEEP = 0.7
+
+    batch = db.batch()
+    count = 0
+
+    df = pd.DataFrame([{
+        'cedula': row['doc_id'],
+        'familia': row['familia_id'],
+        'fecha': row['fecha'],
+        'edad': row['edad'],
+        'nombre': row['primerapellido'] + ' ' + row['segundoapellido'] + ' ' + row['primernombre'] + ' ' + row[
+            'segundonombre'],
+        'telefono': row['celular'],
+        'vivienda': row['sociambiental_id'],
+    } for _, row in df_personas.iterrows()
+    ])
+
+    df = df[df["cedula"].notna()]  # elimina NaN
+    df["cedula"] = df["cedula"].astype(str).str.strip()
+    df["cedula"] = df["cedula"].astype(str).str.strip().apply(lambda s: s[1:] if s.startswith("0") else s)
+    df = df[df["cedula"] != ""]  # elimina vacíos
+    df = df.drop_duplicates(subset=["cedula"])
+    df = df.set_index("cedula")
+    data = df.to_dict(orient="index")
+
+    total = len(df)
+    print(f"🚀 Iniciando carga de {total} personas")
+
+    for i, row in df.iterrows():
+        cedula = str(row["cedula"]).strip()
+
+        if not cedula or cedula.lower() == "nan":
+            continue
+
+        doc_ref = collection.document(cedula)
+
+        data = row.dropna().to_dict()
+
+        batch.set(doc_ref, data, merge=True)
+
+        count += 1
+
+        if count % BATCH_SIZE == 0:
+            try:
+                batch.commit()
+                print(f"✅ Insertados {count}/{total}")
+                time.sleep(SLEEP)
+            except Exception as e:
+                print(f"⚠️ Error en batch {count}: {e}")
+                time.sleep(2)
+            batch = db.batch()
+
+    # último batch
+    if count % BATCH_SIZE != 0:
+        batch.commit()
+        print(f"✅ Insertados {count}/{total}")
+
+    print("🎉 Carga finalizada sin errores")
 
 def main():
 
@@ -612,13 +680,15 @@ LEFT JOIN (
         print(df_familias_consolidados.head())
         print(df_familias_consolidados.shape)
 
-        cargar_csv_a_bigquery(df_personas_consolidados, table_id="datos_aps.personas",project_id="aps-project-478903",columnas_fecha=['fechanac','fecha','reporte_fecha'])
-        cargar_csv_a_bigquery(df_familias_consolidados, table_id="datos_aps.familias", project_id="aps-project-478903",columnas_fecha=['date','fecha','reporte_fecha'])
-        cargar_csv_a_bigquery(df_novedades_consolidado, table_id="datos_aps.novedades", project_id="aps-project-478903",columnas_fecha=['fecha','reporte_fecha'])
+        #cargar_csv_a_bigquery(df_personas_consolidados, table_id="datos_aps.personas",project_id="aps-project-478903",columnas_fecha=['fechanac','fecha','reporte_fecha'])
+        #cargar_csv_a_bigquery(df_familias_consolidados, table_id="datos_aps.familias", project_id="aps-project-478903",columnas_fecha=['date','fecha','reporte_fecha'])
+        #cargar_csv_a_bigquery(df_novedades_consolidado, table_id="datos_aps.novedades", project_id="aps-project-478903",columnas_fecha=['fecha','reporte_fecha'])
 
-        reescribir_hoja("1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI", "cosolidado_familias", df_familias_consolidados, client)
-        reescribir_hoja("1g6865j3cOGhkj6VAkfIqcJqScB4eWTXUqrZx16Czhuo", "cosolidado_personas", df_personas_consolidados, client)
-        reescribir_hoja("1Yr9gvmWQ7i6ANgI-9LAW8Yfwi6HScJfF7ll3nm0StTE", "cosolidado_novedades", df_novedades_consolidado, client)
+        #reescribir_hoja("1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI", "cosolidado_familias", df_familias_consolidados, client)
+        #reescribir_hoja("1g6865j3cOGhkj6VAkfIqcJqScB4eWTXUqrZx16Czhuo", "cosolidado_personas", df_personas_consolidados, client)
+        #reescribir_hoja("1Yr9gvmWQ7i6ANgI-9LAW8Yfwi6HScJfF7ll3nm0StTE", "cosolidado_novedades", df_novedades_consolidado, client)
+
+        actualizar_cedulas_firebase(df_personas_consolidados, credentials.Certificate("aps-run-id-firebase-adminsdk-fbsvc-9f8e9a6e72.json"))
 
     except Exception as e:
 

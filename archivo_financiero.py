@@ -1,9 +1,10 @@
 from datetime import datetime
 import pandas as pd
-
+import firebase_admin
+from firebase_admin import credentials
 from export_aps_124 import limpiar_tildes
 from export_usuarios_institucionales import codificar_formato
-from propiedades_aps124 import PROPIEDADES_TIPO_2
+
 
 
 def df_tipo_1(tipo_registro, propiedades_tipo_1, num):
@@ -124,14 +125,12 @@ def df_tipo_4(tipo_registro, df ,nit, inicio_consecutivo, recurso='ID2139724657'
     formato.insert(1, 'consecutivo_registro', range(valor_rango, valor_rango + len(formato)))
     return formato
 
-
 def obtenert_porcentaje(df, param, param1):
     total = df[df['numero_contrato'] == param]['valor'].sum()
     if total > 0:
         porcentaje = (param1 / total) * 100
         return f"{porcentaje:.1f}"
     return "0.00"
-
 
 def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo, recurso):
 
@@ -197,7 +196,6 @@ def df_tipo_6(tipo_registro,nit, inicio_consecutivo,id_recurso):
     formato.insert(1, 'consecutivo_registro', range(valor_rango, valor_rango + len(formato)))
     return formato
 
-
 def df_tipo_7(tipo_registro,nit, inicio_consecutivo, df, id_recurso):
 
     if df.empty:
@@ -253,17 +251,17 @@ def main():
 
     PROPIEDADES_TIPO_2 = [
     # 1
-        ['ID2197624614'], # RESOLUCION 1976
+        ['ID2087325712'], # RESOLUCION 873
     # 2
-        ['I'],
+        ['NA'],
     # 3
         '4',
     # 4
-        ['123004'],
+        [''],
     # 5
-        ['2025-05-27'],
+        [''],
     # 6
-        ['1678951650.00'],
+        [''],
     ]
 
     PROPIEDADES_TIPO_3 = [
@@ -283,9 +281,9 @@ def main():
         ]
     ]
 
-    url = 'activos/reporte_ser/RESOLUCION_1976_REINTEGRO_TIPO_3.xlsx'
+    url = 'activos/reporte_ser/RESOLUCION_873_TIPO_3_DIC.xlsx'
     ur_polisa = 'activos/polisa_1397_actualizacion.xlsx'
-    url_flujo = 'activos/reporte_ser/RESOLUCION_1976_REINTEGRO_TIPO_3.xlsx'
+    url_flujo = 'activos/reporte_ser/RESOLUCION_873_TIPO_5_DIC.xlsx'
     url_rendimiento = 'activos/rendimientos_1976.xlsx'
 
 
