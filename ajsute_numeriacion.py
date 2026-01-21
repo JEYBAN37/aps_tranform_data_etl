@@ -1,3 +1,12 @@
+from base64 import decode
+
+import mysql
+import pandas as pd
+import mysql.connector
+from credenciales import MYSQL_APS, MYSQL_REPLICA_PASSWORD, MYSQL_REPLICA_USER, DATABASE_APS2024
+from mysql_conector import ejecutar_consulta_mysql
+
+
 def main():
     ruta = "./reportes/2025-12-26/CONSOLIDADO/APS124CCFP20251222NI000900091143.txt"
 
@@ -25,6 +34,41 @@ def main():
     print("Columna 2 actualizada correctamente.")
 
 
+def cargar_indicadores():
+    connection = mysql.connector.connect(
+        host=MYSQL_APS,
+        user=MYSQL_REPLICA_USER,
+        password=MYSQL_REPLICA_PASSWORD,
+        database=DATABASE_APS2024,
+        autocommit=False  # Disable autocommit
+    )
+
+    url_ccv ="cv/datos_cargar.csv"
+
+    df_indicadores = pd.read_csv(url_ccv, dtype=str, encoding='latin1')
+
+    df_indicadores['indicadores'] = df_indicadores.apply(
+        lambda r: f"{r['indicadores']}|{r['cursos']}" if pd.notna(r['cursos']) and str(
+            r['cursos']).strip() != '' else str(r['indicadores']),
+        axis=1
+    )
+
+    try:
+        cursor = connection.cursor()
+        sql = "INSERT INTO agsolutic_alpha_2025.parametros (resultado, indicador) VALUES (%s, %s)"
+        records = df_indicadores[['resultados', 'indicadores']].fillna('').astype(str).values.tolist()
+        cursor.executemany(sql, records)
+
+        connection.commit()
+    except Exception as e:
+
+        connection.rollback()  # Rollback in case of error
+        print(f"Error: {e}")
+
+    finally:
+        cursor.close()
+        connection.close()
+
 if __name__ == "__main__":
-    main()
+    cargar_indicadores()
 
