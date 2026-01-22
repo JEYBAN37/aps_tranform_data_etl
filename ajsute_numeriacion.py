@@ -8,7 +8,7 @@ from mysql_conector import ejecutar_consulta_mysql
 
 
 def main():
-    ruta = "./reportes/2025-12-26/CONSOLIDADO/APS124CCFP20251222NI000900091143.txt"
+    ruta = "cv/APS124CCFP20251222NI000900091143.txt"
 
     # Leer líneas
     with open(ruta, "r", encoding="utf-8") as f:
@@ -43,20 +43,14 @@ def cargar_indicadores():
         autocommit=False  # Disable autocommit
     )
 
-    url_ccv ="cv/datos_cargar.csv"
+    url_ccv ="cv/datos_cargar.xlsx"
 
-    df_indicadores = pd.read_csv(url_ccv, dtype=str, encoding='latin1')
-
-    df_indicadores['indicadores'] = df_indicadores.apply(
-        lambda r: f"{r['indicadores']}|{r['cursos']}" if pd.notna(r['cursos']) and str(
-            r['cursos']).strip() != '' else str(r['indicadores']),
-        axis=1
-    )
+    df_indicadores = pd.read_excel(url_ccv)
 
     try:
         cursor = connection.cursor()
-        sql = "INSERT INTO agsolutic_alpha_2025.parametros (resultado, indicador) VALUES (%s, %s)"
-        records = df_indicadores[['resultados', 'indicadores']].fillna('').astype(str).values.tolist()
+        sql = "INSERT INTO agsolutic_alpha_2025.parametros (resultado, indicador, curso) VALUES (%s, %s, %s)"
+        records = df_indicadores[['resultados', 'indicadores','cursos']].fillna('').astype(str).values.tolist()
         cursor.executemany(sql, records)
 
         connection.commit()
@@ -70,5 +64,5 @@ def cargar_indicadores():
         connection.close()
 
 if __name__ == "__main__":
-    cargar_indicadores()
+    main()
 
