@@ -206,17 +206,13 @@ def main():
         consumospa,
         tomacitologia,
         mamografia,
-        remisionespecifica,
         discapacidad,
         fechanac,
-        cursovida,
         sexo,
         'NO APLICA' AS desnutricion,
         iniciovidasexual,
         riesgoembarazo,
         canalizacionuno,
-        canalizaciondos,
-        canalizaciontres,
         sopechamaltrato,
         'NO APLICA' AS desarrolloinfantil,
         'Adulto' AS cursodevida,
@@ -249,17 +245,13 @@ def main():
         'NO APLICA' AS consumospa,
         'NO APLICA' AS tomacitologia,
         'NO APLICA' AS mamografia,
-        remisionespecifica,
         discapacidad,
         fechanac,
-        'NO APLICA' as cursovida,
         sexo,
         desnutricion,
         'NO APLICA' AS iniciovidasexual,
         'NO APLICA' AS riesgoembarazo,
         canalizacionuno,
-        canalizaciondos,
-        canalizaciontres,
         'NO APLICA' AS sopechamaltrato,
         desarrolloinfantil,
         'Infante' AS cursodevida,
@@ -292,17 +284,13 @@ def main():
         'NO APLICA' AS consumospa,
         'NO APLICA' AS tomacitologia,
         'NO APLICA' AS mamografia,
-        remisionespecifica,
         discapacidad,
         fechanac,
-        'NO APLICA' AS cursovida,
         sexo,
         desnutricion,
         'NO APLICA' AS iniciovidasexual,
         'NO APLICA' AS riesgoembarazo,
         canalizacionuno,
-        canalizaciondos,
-        canalizaciontres,
         'NO APILCA' AS sopechamaltrato,
         desarrolloinfantil,
         'PrimeraInfancia' AS cursodevida,
@@ -335,17 +323,13 @@ def main():
         consumospa,
         'NO APLICA' AS tomacitologia,
         'NO APLICA' AS mamografia,
-        remisionespecifica,
         discapacidad,
         fechanac,
-        cursovida,
         sexo,
         'NO APLICA' AS desnutricion,
         iniciovidasexual,
         riesgoembarazo,
         canalizacionuno,
-        canalizaciondos,
-        canalizaciontres,
         sopechamaltrato,
         'NO APLICA' AS desarrolloinfantil,
         'Adolescencia' AS cursodevida,
@@ -665,12 +649,18 @@ LEFT JOIN (
         os.makedirs(F'reportes/{FE_REPORTE}/looker', exist_ok=True)
         df_personas_consolidados.to_csv(
             F'reportes/{FE_REPORTE}/looker/cosolidado_personas_{FE_REPORTE}.csv')
+
+        df_personas_consolidados.to_csv(F'crucez/base_actualizada/cosolidado_personas_{FE_REPORTE}.csv', index=False)
+
         df_familias_consolidados.to_csv(
             F'reportes/{FE_REPORTE}/looker/cosolidado_familias_{FE_REPORTE}.csv')
         df_novedades_consolidado.to_csv(
             F'reportes/{FE_REPORTE}/looker/cosolidado_novedades_{FE_REPORTE}.csv')
         df_observaciones_consolidados.to_csv(
             F'reportes/{FE_REPORTE}/looker/cosolidado_observaciones_{FE_REPORTE}.csv')
+
+
+
 
         # Convertir Timestamps a string
         df_familias_consolidados['reporte_fecha'] = FE_REPORTE
@@ -680,15 +670,15 @@ LEFT JOIN (
         print(df_familias_consolidados.head())
         print(df_familias_consolidados.shape)
 
-        #cargar_csv_a_bigquery(df_personas_consolidados, table_id="datos_aps.personas",project_id="aps-project-478903",columnas_fecha=['fechanac','fecha','reporte_fecha'])
-        #cargar_csv_a_bigquery(df_familias_consolidados, table_id="datos_aps.familias", project_id="aps-project-478903",columnas_fecha=['date','fecha','reporte_fecha'])
-        #cargar_csv_a_bigquery(df_novedades_consolidado, table_id="datos_aps.novedades", project_id="aps-project-478903",columnas_fecha=['fecha','reporte_fecha'])
+        cargar_csv_a_bigquery(df_personas_consolidados, table_id="datos_aps.personas",project_id="aps-project-478903",columnas_fecha=['fechanac','fecha','reporte_fecha'])
+        cargar_csv_a_bigquery(df_familias_consolidados, table_id="datos_aps.familias", project_id="aps-project-478903",columnas_fecha=['date','fecha','reporte_fecha'])
+        cargar_csv_a_bigquery(df_novedades_consolidado, table_id="datos_aps.novedades", project_id="aps-project-478903",columnas_fecha=['fecha','reporte_fecha'])
 
-        #reescribir_hoja("1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI", "cosolidado_familias", df_familias_consolidados, client)
-        #reescribir_hoja("1g6865j3cOGhkj6VAkfIqcJqScB4eWTXUqrZx16Czhuo", "cosolidado_personas", df_personas_consolidados, client)
-        #reescribir_hoja("1Yr9gvmWQ7i6ANgI-9LAW8Yfwi6HScJfF7ll3nm0StTE", "cosolidado_novedades", df_novedades_consolidado, client)
+        reescribir_hoja("1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI", "cosolidado_familias", df_familias_consolidados, client)
+        reescribir_hoja("1g6865j3cOGhkj6VAkfIqcJqScB4eWTXUqrZx16Czhuo", "cosolidado_personas", df_personas_consolidados, client)
+        reescribir_hoja("1Yr9gvmWQ7i6ANgI-9LAW8Yfwi6HScJfF7ll3nm0StTE", "cosolidado_novedades", df_novedades_consolidado, client)
 
-        actualizar_cedulas_firebase(df_personas_consolidados, credentials.Certificate("aps-run-id-firebase-adminsdk-fbsvc-9f8e9a6e72.json"))
+        #actualizar_cedulas_firebase(df_personas_consolidados, credentials.Certificate("aps-run-id-firebase-adminsdk-fbsvc-9f8e9a6e72.json"))
 
     except Exception as e:
 
