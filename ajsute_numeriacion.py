@@ -63,6 +63,72 @@ def cargar_indicadores():
         cursor.close()
         connection.close()
 
+
+
+
+
+def unir_csv_falla_coordenadas ():
+    ruta = "reportes/2025-12-05/fallas_coordenadas"
+    df_consolidado = pd.DataFrame()
+    for i in range(1,19):
+        ruta_csv = f"{ruta}/{i}.csv"
+        df = pd.read_csv(ruta_csv)
+        df_consolidado = pd.concat([df_consolidado, df], ignore_index=True)
+
+
+    ruta_salida = f"{ruta}/fallas_coordenadas_consolidado.csv"
+    df_consolidado.to_csv(ruta_salida, index=False)
+    print("Archivos CSV unidos correctamente.")
+
+def unir_csv_falla_familias ():
+    ruta = "reportes/2025-12-05/fallas_familias"
+    df_consolidado = pd.DataFrame()
+    for i in range(1,5):
+        ruta_csv = f"{ruta}/{i}.csv"
+        df = pd.read_csv(ruta_csv)
+        df_consolidado = pd.concat([df_consolidado, df], ignore_index=True)
+
+
+    ruta_salida = f"{ruta}/fallas_familia_consolidado.csv"
+    df_consolidado.to_csv(ruta_salida, index=False)
+    print("Archivos CSV unidos correctamente.")
+
+def convertir_to_json():
+    ruta_csv = "cv/Formato_Cronograma.xlsx"
+    df = pd.read_excel(ruta_csv)
+    df['id'] = df.index + 1
+
+    # Convert common date columns to a JS-friendly array: [year, monthIndex, day, hour, minute]
+    date_columns = ['fechaInicio', 'fechaFin', 'fecha_inicio', 'fecha_fin', 'start', 'end']
+    for col in date_columns:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors='coerce')
+            def to_js_array(dt):
+                if pd.isna(dt):
+                    return None
+                return [int(dt.year), int(dt.month), int(dt.day), int(dt.hour), int(dt.minute)]
+            df[col] = df[col].apply(to_js_array)
+
+    # If `url` column exists, ensure missing values become JSON null
+    if 'url' in df.columns:
+        df['url'] = df['url'].apply(lambda x: None if pd.isna(x) else x)
+
+    # Replace any remaining NaN with None so json.dump writes null
+    df = df.where(pd.notnull(df), None)
+
+    # Write records with native Python structures so JSON arrays/nulls are preserved
+    import json
+    ruta_json = "cv/Formato_Cronograma.json"
+    records = df.to_dict(orient='records')
+    with open(ruta_json, "w", encoding="utf-8") as f:
+        json.dump(records, f, ensure_ascii=False, indent=2)
+
+
+
 if __name__ == "__main__":
-    main()
+    #main()
+    #cargar_indicadores()
+    #unir_csv_falla_coordenadas()
+    #unir_csv_falla_familias()
+    convertir_to_json()
 

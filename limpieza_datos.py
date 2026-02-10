@@ -154,7 +154,6 @@ def main():
     client = gspread.authorize(creds)
 
     try:
-
         cursor = connection.cursor()
         acumulado_personas = []
         acumulado_familias = []
@@ -357,7 +356,7 @@ def main():
         cursor = connection.cursor()
         for database in DATABASE:
             familias_query = ejecutar_consulta_mysql(f"""SELECT 
-    '{database}' AS db,
+    s.base_anterior AS db,
     f.id AS familia_id,
     f.sociambiental_id,
     f.apellidos,
@@ -371,6 +370,7 @@ def main():
     s.diposicionexcretas,
     s.basura,
     s.vivienda,
+    s.direccion,
     o.familiograma,
     f.calculoapgar,
     f.apgarFuncionalidad,
@@ -515,9 +515,16 @@ LEFT JOIN (
             .str.replace(r'\.0+$', '', regex=True)
         )
 
-        for col in df_personas_consolidados.columns:
-            df_personas_consolidados[col] = df_personas_consolidados[col].fillna('').astype(
-                str).str.strip().str.replace(r'[^\w\s]', '', regex=True)
+        for i, col in enumerate(df_personas_consolidados.columns):
+            if df_personas_consolidados.dtypes.iloc[i] == object and col not in ('canalizacionuno'):
+                df_personas_consolidados[col] = df_personas_consolidados[col].fillna('').astype(
+                    str).str.strip().str.replace(r'[^\w\s]', '', regex=True)
+
+
+        df_personas_consolidados['canalizacionuno'] = (
+            df_personas_consolidados['canalizacionuno']
+            .str.replace(',', '$', regex=True)
+        )
 
         df_personas_consolidados['fecha'] = pd.to_datetime(df_personas_consolidados['fecha'],
                                                            errors='coerce').dt.strftime('%Y-%m-%d').fillna('').astype(
@@ -545,7 +552,7 @@ LEFT JOIN (
 
 
         for i, col in enumerate(df_familias_consolidados.columns):
-            if df_familias_consolidados.dtypes.iloc[i] == object and col not in ('longitud', 'latitud'):
+            if df_familias_consolidados.dtypes.iloc[i] == object and col not in ('longitud', 'latitud','familiograma','plancuidado'):
                 df_familias_consolidados.iloc[:, i] = df_familias_consolidados.iloc[:, i].astype(
                     str).str.strip().str.replace(r'[^\w\s]', '', regex=True)
 
