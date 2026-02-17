@@ -46,60 +46,60 @@ def main():
     url = 'https://docs.google.com/spreadsheets/d/1RqbfsgJc9N-qOJfmveLQTm1GNwwbO-0S/export?format=xlsx&gid=749204967'
 
     # Read the Excel file
-    df = pd.read_excel(url, engine='openpyxl')  # Ensure `openpyxl` is installed
+    df = pd.read_excel(url, engine='openpyxl' )  # Ensure `openpyxl` is installed
 
     # Ensure all string columns are processed to handle special characters
     for col in df.select_dtypes(include=['object']).columns:
         df[col] = df[col].astype(str).str.normalize('NFKD')
 
     df = df[
-        df['N° CEDULA'].notnull() & (df['N° CEDULA'] != '')
-        ].copy()
+        df['N° CEDULA'].notnull() & (df['N° CEDULA'].astype(str).str.strip() != '')
+    ].copy()
+    # Remove trailing `.0` from values that came from numeric columns (e.g. '12345.0') and strip spaces
+    df['N° CEDULA'] = df['N° CEDULA'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+
+    df = df[df['N° CONTRATO'].notnull() & (df['N° CONTRATO'] != '')].copy()
+
+    df = df[df['TELEFONO'].notnull() & (df['TELEFONO'] != '') & (df['TELEFONO'] != '#N/D')].copy()
 
     print(df['N° CEDULA'])
 
     CEDULAS_QUE_NO_SE_REPORTA = [
-        "1004190710",
-        "1004190984",
-        "1004235479",
-        "1004564013",
-        "1030606749",
-        "1080040525",
-        "1081052090",
-        "1081052746",
-        "1081053820",
-        "1081282855",
-        "1082747438",
-        "1085286725",
-        "1085310606",
-        "1085313195",
-        "1085315209",
-        "1085333467",
-        "1085334831",
-        "1085335069",
-        "1085340885",
-        "1086016304",
-        "1086361622",
-        "1087414586",
-        "1087645341",
-        "1089975658",
-        "1193035720",
-        "1233188221",
-        "1233190640",
-        "1233192708",
-        "12974849",
-        "27082650",
-        "27086745",
-        "27253636",
-        "36950892",
-        "5930737",
-        "59312865",
-        "59313415",
-        "59314118",
-        "59825948",
-        "59829440",
-        "87030128",
-        "87070742",
+        '1081052746',
+        '1081053820',
+        '1084224968',
+        '1085268450',
+        '1085275445',
+        '1085281002',
+        '1085286725',
+        '1085287296',
+        '1085312669',
+        '1085313195',
+        '1085317833',
+        '1085325325',
+        '1085327836',
+        '1085331558',
+        '1085335069',
+        '1086018841',
+        '1086222689',
+        '1086222977',
+        '1086361622',
+        '1088216350',
+        '1088799080',
+        '1089975658',
+        '1193474724',
+        '1233192708',
+        '27436186',
+        '27549932',
+        '5930737',
+        '59312779',
+        '59312865',
+        '59815593',
+        '59830040',
+        '59833899',
+        '87069979',
+        '1004235479'
+
     ]
 
     # crea dtaframe
@@ -179,6 +179,7 @@ def registros_tipo_2(tipo_registro, df_usuarios):
 
     limpiar_nombre = fuente['NOMBRE'].astype(str).str.replace(r'[^a-zA-Z\s]', '', regex=True)
 
+
     # limpiar_nombre = fuente['NOMBRE'].astype(str).str.replace(r'[^a-zA-ZñÑ\s]', '', regex=True)
 
     formato = pd.DataFrame({
@@ -188,10 +189,10 @@ def registros_tipo_2(tipo_registro, df_usuarios):
         'primer_nombre': limpiar_nombre.str.split().str[0].str.upper(),
         'primer_apellido': limpiar_nombre.apply(extraer_primer_apellido).str.upper(),
         'indicador_vinculacion': 'V',
-        'telefono': fuente['TELEFONO'].astype(str).str.replace(r'[^0-9]', '', regex=True).str[:10],
+        'telefono': fuente['TELEFONO'].astype(str).str.replace(r'[^0-9]', '', regex=True),
         'cargo': fuente['PERFIL'].astype(str).str.upper(),
         'contrato': '0',
-        'fin':'2025-12-31',
+        'fin':'2026-03-31',
         'correo_electronico': 'pastosaludeseaps@gmail.com'
     })
 
