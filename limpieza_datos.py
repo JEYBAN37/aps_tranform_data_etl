@@ -3,6 +3,7 @@ import mysql.connector
 import pandas as pd
 from google.oauth2.service_account import Credentials
 from automatizacion_looker_aps.familias.familias import cargar_familias
+from automatizacion_looker_aps.intervenciones.filtrado_actividades import filtro_actividades
 from automatizacion_looker_aps.novedades.novedades import cargar_novedades
 from automatizacion_looker_aps.personas.personas import cargar_personas
 from credenciales import MYSQL_APS, MYSQL_REPLICA_USER, DATABASE_APS2024, MYSQL_REPLICA_PASSWORD, DATABASE
@@ -29,7 +30,7 @@ def main():
 
     url_distribucion_redes = "https://docs.google.com/spreadsheets/d/1qChAneFYqnsUHOMPrxgPLNY36vqn-bmtMq6qnVTrYI4/export?format=csv&gid=0"
 
-    creds = Credentials.from_service_account_file("../credentials.json", scopes=scope)
+    creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
 
     client = gspread.authorize(creds)
 
@@ -39,17 +40,26 @@ def main():
 
     try:
 
-        cursor = connection.cursor()
-        cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1g6865j3cOGhkj6VAkfIqcJqScB4eWTXUqrZx16Czhuo")
-        connection.commit()
+        #cursor = connection.cursor()
+        #cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1g6865j3cOGhkj6VAkfIqcJqScB4eWTXUqrZx16Czhuo")
+        #connection.commit()
 
         cursor = connection.cursor()
-        cargar_familias( cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI")
+        #familias = cargar_familias( cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI")
+        #connection.commit()
+
+        familias = pd.DataFrame({
+            "sociambiental_id": [ '125948', '2','3' ],
+            "familia_id": ['126190', '2','3'],
+            "fecha": ["2025-01-03", "2024-01-02", "2025-01-03"],
+            "validacion": ['ERROR EN CARACTERIZACION', 'OK', 'ERROR EN CARACTERIZACION']}
+        )
+        filtro_actividades(cursor, familias, DATABASE,'personas')
         connection.commit()
 
-        cursor = connection.cursor()
-        cargar_novedades(cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1Yr9gvmWQ7i6ANgI-9LAW8Yfwi6HScJfF7ll3nm0StTE")
-        connection.commit()
+        #cursor = connection.cursor()
+        #cargar_novedades(cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1Yr9gvmWQ7i6ANgI-9LAW8Yfwi6HScJfF7ll3nm0StTE")
+        #connection.commit()
 
 
     except Exception as e:
