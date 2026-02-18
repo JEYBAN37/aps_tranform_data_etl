@@ -21,15 +21,12 @@ def cargar_familias(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
     familias = acumulado_familias
 
     df_familias_consolidados = pd.DataFrame(familias)
-    df_observaciones_consolidados = pd.DataFrame(familias)
 
     df_familias_consolidados.columns = [desc[0] for desc in cursor.description]
-    df_observaciones_consolidados.columns = [desc[0] for desc in cursor.description]
 
     # dividir reporte Observacion duplicados y no duplicados
     df_familias_consolidados.drop_duplicates(subset=['familia_id', 'db'], keep='first', inplace=True)
 
-    print("Limpieza de datos completada.")
     df_familias_consolidados['longitud'] = df_familias_consolidados['longitud'].apply(limpiar_formato_longitud)
     df_familias_consolidados['latitud'] = df_familias_consolidados['latitud'].apply(limpiar_formato_latitud)
 
@@ -39,10 +36,6 @@ def cargar_familias(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
             df_familias_consolidados.iloc[:, i] = df_familias_consolidados.iloc[:, i].astype(
                 str).str.strip().str.replace(r'[^\w\s]', '', regex=True)
 
-    for i, col in enumerate(df_observaciones_consolidados.columns):
-        if df_observaciones_consolidados.dtypes.iloc[i] == object and col not in ('longitud', 'latitud'):
-            df_observaciones_consolidados.iloc[:, i] = df_observaciones_consolidados.iloc[:, i].astype(
-                str).str.strip().str.replace(r'[^\w\s]', '', regex=True)
 
     df_familias_consolidados['fecha'] = pd.to_datetime(df_familias_consolidados['fecha'],
                                                        errors='coerce').dt.strftime('%Y-%m-%d').fillna('').astype(
@@ -78,8 +71,6 @@ def cargar_familias(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
     df_familias_consolidados.to_csv(
         F'../reportes/{FE_REPORTE}/looker/cosolidado_familias_{FE_REPORTE}.csv')
 
-    df_observaciones_consolidados.to_csv(
-        F'../reportes/{FE_REPORTE}/looker/cosolidado_observaciones_{FE_REPORTE}.csv')
 
     df_familias_consolidados['reporte_fecha'] = FE_REPORTE
 
@@ -88,3 +79,7 @@ def cargar_familias(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
 
     sobrescribir_hoja(sheet_id, "cosolidado_familias", df_familias_consolidados,
                     client)
+
+    return df_familias_consolidados
+
+    print("Limpieza de datos completada.")
