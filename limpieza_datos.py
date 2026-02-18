@@ -45,15 +45,10 @@ def main():
         #connection.commit()
 
         cursor = connection.cursor()
-        #familias = cargar_familias( cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI")
-        #connection.commit()
+        familias = cargar_familias( cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI")
+        connection.commit()
 
-        familias = pd.DataFrame({
-            "sociambiental_id": [ '125948', '2','3' ],
-            "familia_id": ['126190', '2','3'],
-            "fecha": ["2025-01-03", "2024-01-02", "2025-01-03"],
-            "validacion": ['ERROR EN CARACTERIZACION', 'OK', 'ERROR EN CARACTERIZACION']}
-        )
+        cursor = connection.cursor()
         filtro_actividades(cursor, familias, DATABASE,'personas')
         connection.commit()
 
