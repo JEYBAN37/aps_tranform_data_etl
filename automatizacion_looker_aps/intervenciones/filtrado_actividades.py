@@ -85,7 +85,7 @@ def verificar_nuevas_caracterizaciones(row, df_familias, df_personas):
 
     sociambiental_id = row.get('sociambiental_id')
     if ['sociambiental_id'] is not None and sociambiental_id != 'nan':
-        df_familia = df_familias[df_familias['sociambiental_id'] == sociambiental_id]
+        df_familia = df_familias[df_familias['sociambiental_id'] == 125948]
 
         if not registro_json.get('updateDate') and registro_json.get('fecha') > '2025-12-31':
             if 'validacion' in df_familia.columns:
