@@ -21,18 +21,22 @@ def main():
     )
     try:
         cursor = connection.cursor(dictionary=True)  # Usar dictionary=True facilita el manejo
-
+        territorio_name = 'T07'
+        territori_mc = 'Territorio 3.1'
+        territori_nm = '3.1'
         # Consulta SQL
         sql = f"""
         SELECT 
             u.microterritorio,
             u.territorio,
             s.latitud,
-            s.longitud
+            s.longitud,
+            f.apellidos,
+            f.celular
         FROM {DATABASE_APS2024}.familias f
         LEFT JOIN {DATABASE_APS2024}.sociambientals s ON s.id = f.sociambiental_id
         LEFT JOIN {DATABASE_APS2024}.ubicaciones u ON u.id = s.ubicacion_id
-        WHERE u.territorio = 'T07' AND s.latitud IS NOT NULL
+        WHERE u.territorio = '{territorio_name}' AND s.latitud IS NOT NULL
         """
         cursor.execute(sql)
         territorio = cursor.fetchall()
@@ -90,8 +94,8 @@ def main():
             # Buscamos en la columna 'Description' o 'Name' el texto "3.1"
             # Usamos una expresión regular para que sea exacto y no traiga el "3.11" por error
             filtro_31 = data_capa[
-                data_capa['description'].astype(str).str.contains('Territorio: Territorio 3.1', case=False, na=False) |
-                data_capa['Name'].astype(str).str.contains('3.1', case=False, na=False)
+                data_capa['Description'].astype(str).str.contains(f'Territorio: {territori_mc}', case=False, na=False) |
+                data_capa['Name'].astype(str).str.contains(territori_nm, case=False, na=False)
                 ]
 
             if not filtro_31.empty:
@@ -109,7 +113,7 @@ def main():
             # DIBUJAR EN EL MAPA
             folium.GeoJson(
                 gdf_final,
-                name="Territorio 3.1 Seleccionado",
+                name=f"{territorio_name} Seleccionado",
                 style_function=lambda f: {
                     "fillColor": "#8000ff",  # Color Púrpura para identificarlo rápido
                     "color": "black",  # Borde negro
@@ -121,7 +125,7 @@ def main():
 
             print("✅ El Territorio 3.1 ha sido filtrado y dibujado.")
         else:
-            print("⚠️ No se encontró ningún dato que coincida con 'Territorio 3.1'")
+            print(f"⚠️ No se encontró ningún dato que coincida con {territorio_name} en el KML. Verifica los nombres y el contenido del KML.")
 
         # 3. DIBUJAR LOS PUNTOS DE LA BASE DE DATOS (MICRO-DIVISIONES)
         # Aquí es donde mapeamos cada familia/ubicación de la DB
@@ -131,6 +135,18 @@ def main():
                 # .strip() quita espacios al inicio/final, .replace(" ", "") quita espacios internos
                 lat = float(str(fila['latitud']).strip().replace(" ", ""))
                 lon = float(str(fila['longitud']).strip().replace(" ", ""))
+
+                street_url = f"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={lat},{lon}"
+                raw_phone = fila.get('celular', '')
+                sanitized_phone = ''.join(c for c in str(raw_phone) if c.isdigit() or c == '+')
+                tel_url = f"tel:{sanitized_phone}" if sanitized_phone else ""
+                print(fila)
+                popup_html = (
+                    f"Micro: {fila['microterritorio']}<br>"
+                    f"Familia: {fila['apellidos']}<br>"
+                    f"Tel: <a href=\"{tel_url}\">{fila.get('celular', '')}</a><br>"
+                    f"<a href=\"{street_url}\" target=\"_blank\" rel=\"noopener noreferrer\">Open Street View</a>"
+                )
 
                 # Solo dibujar si las coordenadas son válidas
                 if lat and lon:
@@ -142,7 +158,7 @@ def main():
                         fill=True,
                         fill_color='red',  # Interior rojo
                         fill_opacity=0.9,
-                        popup=f"Micro: {fila['microterritorio']}"
+                        popup=folium.Popup(popup_html, max_width=300)
                     ).add_to(m)
 
             except (ValueError, TypeError):
@@ -152,7 +168,7 @@ def main():
 
         # 4. Guardar
         folium.LayerControl().add_to(m)
-        m.save("mapa/mapa_sectores_pasto.html")
+        m.save(f"mapa/aps_mapa_{territorio_name}.html")
         print(f"✅ ¡Mapa listo! Se cargaron {len(territorio)} puntos sobre los sectores del KML.")
 
     except Exception as e:
