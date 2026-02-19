@@ -27,6 +27,15 @@ def cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
         .str.replace(r'\.0+$', '', regex=True)
     )
 
+    df_personas_consolidados['id'] = (
+        df_personas_consolidados['familia_id']
+        .fillna('')
+        .astype(str)
+        .str.strip()
+        .str.replace(r'\.0+$', '', regex=True)
+    )
+
+
     df_personas_consolidados['sociambiental_id'] = (
         df_personas_consolidados['sociambiental_id']
         .fillna('')
@@ -82,12 +91,14 @@ def cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
     df_personas_consolidados.to_csv(
         F'../reportes/{FE_REPORTE}/looker/cosolidado_personas_{FE_REPORTE}.csv')
 
-    df_personas_consolidados.to_csv(F'../crucez/base_actualizada/cosolidado_personas_{FE_REPORTE}.csv', index=False)
+    #df_personas_consolidados.to_csv(F'../crucez/base_actualizada/cosolidado_personas_{FE_REPORTE}.csv', index=False)
 
     df_personas_consolidados['reporte_fecha'] = FE_REPORTE
 
-    cargar_csv_a_bigquery(df_personas_consolidados, table_id="datos_aps.personas", project_id="aps-project-478903",
-                          columnas_fecha=['fechanac', 'fecha', 'reporte_fecha'])
+    #cargar_csv_a_bigquery(df_personas_consolidados, table_id="datos_aps.personas", project_id="aps-project-478903",
+                          #columnas_fecha=['fechanac', 'fecha', 'reporte_fecha'])
 
-    sobrescribir_hoja(sheet_id, "cosolidado_personas", df_personas_consolidados,
-                    client)
+    #sobrescribir_hoja(sheet_id, "cosolidado_personas", df_personas_consolidados,
+                    #client)
+
+    return df_personas_consolidados
