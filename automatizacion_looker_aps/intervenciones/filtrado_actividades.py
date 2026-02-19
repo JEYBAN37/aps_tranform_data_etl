@@ -81,6 +81,7 @@ def verificar_nuevas_caracterizaciones(row, df_familias):
 
     sociambiental_id = row.get('sociambiental_id')
     if ['sociambiental_id'] is not None and sociambiental_id != 'nan':
+        print(f"Verificando nueva caracterización para sociambiental_id: {sociambiental_id}")
         df_familia = df_familias[df_familias['sociambiental_id'] == sociambiental_id]
 
         if df_familia.empty:
