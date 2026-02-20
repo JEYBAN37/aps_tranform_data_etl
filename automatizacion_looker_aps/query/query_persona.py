@@ -25,7 +25,7 @@ def query_persona(database):
                 END AS estado
             FROM (
     SELECT 
-        j.id,
+        j.id as juventud_id,
         j.numerodoc AS doc_id,
         j.familia_id,
         j.tipodocumento,

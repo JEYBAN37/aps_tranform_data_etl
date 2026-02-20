@@ -18,6 +18,8 @@ def limpiar_id (df, column_name):
 
 
 def filtro_actividades(cursor,df_familia, db, df_personas):
+    df_familia = pd.read_csv('df_familia.csv')  # Cargar df_familia para depuración
+    df_personas = pd.read_csv('df_personas.csv')  # Cargar df_personas para depuración
     acumulado_actividades = []
 
     for database in db:
@@ -73,6 +75,11 @@ def filtro_actividades(cursor,df_familia, db, df_personas):
         .reset_index(name='count')
         .sort_values(['responsable_id', 'fecha'], ascending=[True, False]))
 
+    # organizar las fechas por mas antiguo a mas reciente para cada responsable
+    df_actividades_consolidados = df_actividades_consolidados.sort_values(['responsable_id', 'fecha'], ascending=[True, True])
+
+    df_actividades_consolidados = df_actividades_consolidados.drop_duplicates(subset=['responsable_id', 'fecha'], keep='first')
+
     print(f"Caracterizaciones Nuevas {df_actividades_consolidados['conteo_nuevas_caracterizaciones']}")
     print(f"Total de actividades encontradas: {len(df_actividades_consolidados)}")
 
@@ -82,12 +89,9 @@ def verificar_nuevas_caracterizaciones(row, df_familias):
     sociambiental_id = row.get('sociambiental_id')
     if ['sociambiental_id'] is not None and sociambiental_id != 'nan':
         print(f"Verificando nueva caracterización para sociambiental_id: {sociambiental_id}")
-        df_familia = df_familias[df_familias['sociambiental_id'] == sociambiental_id]
+        df_familia = df_familias[df_familias['sociambiental_id'] == int(float(sociambiental_id))]
 
-        if df_familia.empty:
-            return " 1 | VERIFICAR FAMILIA NO TIENE  "
-
-        if not registro_json.get('updateDate') and registro_json.get('fecha') > '2025-12-31':
+        if not registro_json.get('updateDate') and registro_json.get('fecha') > '2025-12-31' and not df_familia.empty:
             if 'validacion' in df_familia.columns:
                 no_error_mask = ~df_familia['validacion'].astype(str).str.contains('ERROR EN CARACTERIZACION', na=False)
                 count_ok = int(no_error_mask.sum())
@@ -106,7 +110,9 @@ def verificar_actualizacion_ficha(row, df_familias, df_personas):
     fecha_de_modificacion = registro_json.get('fecha')
 
     if ['sociambiental_id'] is not None and sociambiental_id != 'nan':
-        df_familia = df_familias[df_familias['sociambiental_id'] == sociambiental_id]
+
+
+        df_familia = df_familias[df_familias['sociambiental_id'] == int(float(sociambiental_id))]
 
         if df_familia.empty:
             return " 1 | VERIFICAR FAMILIA NO TIENE |C"
@@ -118,18 +124,20 @@ def verificar_actualizacion_ficha(row, df_familias, df_personas):
             return f" 1 | {str(df_familia['validacion'].iloc[0]).strip()} |C"
 
     if ['familia_id'] is not None and familia_id != 'nan':
-            df_familia = df_familias[df_familias['familia_id'] == familia_id]
+            df_familia = df_familias[df_familias['familia_id'] == int(float(familia_id))]
 
             if df_familia.empty:
-                return " 1 | VERIFICAR FAMILIA NO TIENE    |C"
+                return " 1 | VERIFICAR FAMILIA NO TIENE |C"
 
             if row.get('fecha') > df_familia['fecha'].iloc[0]:
                 if not df_familia['validacion'].str.contains('ERROR EN CARACTERIZACION').any():
                     return f" 1 | ACTUALIZACION DE FICHA FAMILIA |C"
                 return f" 1 | {str(df_familia['validacion'].iloc[0]).strip()} |C"
 
+
     if['juventudadultos_id'] is not None and juventudadultos_id != 'nan':
-        df_persona = df_personas[df_personas['id'] == row.get('juventudadultos_id')]
+        df_personas['id'] = df_personas['id'].fillna('nan').astype(str).str.strip().str.replace(r'\.0+$', '', regex=True)
+        df_persona = df_personas[df_personas['juventud_id'] == '80522']
 
         if df_persona.empty:
             return " 1 | VERIFICAR PERSONA NO EXISTE |C"
@@ -146,7 +154,8 @@ def verificar_actualizacion_ficha(row, df_familias, df_personas):
             return f" 1 | {str(df_familia['validacion'].iloc[0]).strip()} | O"
 
     if['observacion_id'] is not None and row.get('observacion_id') != 'nan':
-        df_familia = df_familias[df_familias['familia_id'] == familia_id]
+
+        df_familia = df_familias[df_familias['familia_id'] == int(float(registro_json.get('familia_id')))]
 
         if df_familia.empty:
             return " 1 | VERIFICAR FAMILIA NO TIENE  |O"
@@ -180,10 +189,10 @@ def verificar_plan_cuidado(row, df_familias):
 
     observacion_id = row.get('observacion_id')
 
-    plan_de_cuidado = registro_json.get('dirplancuidado')
+    plan_de_cuidado = registro_json.get('plancuidado')
 
     if ['observacion_id'] is not None and observacion_id != 'nan' and not registro_json.get('dirfamilliograma'):
-        df_familia = df_familias[df_familias['familia_id'] == registro_json.get('familia_id')]
+        df_familia = df_familias[df_familias['familia_id'] == int(float(registro_json.get('familia_id')))]
 
         if df_familia.empty:
             return " 1 | PLAN DE CUIDADO NO VALIDO  "

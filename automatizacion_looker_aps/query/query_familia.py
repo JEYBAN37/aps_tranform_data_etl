@@ -31,6 +31,8 @@ def query_familia(database):
         o.plancuidado,
         o.dirplancuidado,
         o.date,
+        o.responsables AS involucrado_plan_cuidado,
+        o.actividaddesarrollar,
         s.id AS sociambiental_existente,
         u.microterritorio,
         u.cod_microterritorio,
