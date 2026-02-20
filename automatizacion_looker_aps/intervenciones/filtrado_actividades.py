@@ -78,7 +78,7 @@ def filtro_actividades(cursor,df_familia, db, df_personas):
     # organizar las fechas por mas antiguo a mas reciente para cada responsable
     df_actividades_consolidados = df_actividades_consolidados.sort_values(['responsable_id', 'fecha'], ascending=[True, True])
 
-    df_actividades_consolidados = df_actividades_consolidados.drop_duplicates(subset=['responsable_id', 'fecha'], keep='first')
+    #df_actividades_consolidados = df_actividades_consolidados.drop_duplicates(subset=['responsable_id', 'fecha'], keep='first')
 
     print(f"Caracterizaciones Nuevas {df_actividades_consolidados['conteo_nuevas_caracterizaciones']}")
     print(f"Total de actividades encontradas: {len(df_actividades_consolidados)}")
@@ -137,7 +137,7 @@ def verificar_actualizacion_ficha(row, df_familias, df_personas):
 
     if['juventudadultos_id'] is not None and juventudadultos_id != 'nan':
         df_personas['id'] = df_personas['id'].fillna('nan').astype(str).str.strip().str.replace(r'\.0+$', '', regex=True)
-        df_persona = df_personas[df_personas['juventud_id'] == '80522']
+        df_persona = df_personas[df_personas['juventud_id'] == int(float(juventudadultos_id))]
 
         if df_persona.empty:
             return " 1 | VERIFICAR PERSONA NO EXISTE |C"
@@ -147,10 +147,13 @@ def verificar_actualizacion_ficha(row, df_familias, df_personas):
         if df_familia.empty:
             return " 1 | VERIFICAR FAMILIA NO TIENE  |C"
 
-        if pd.to_datetime(fecha_de_modificacion, errors='coerce') > (
-                pd.to_datetime(df_familia['fecha'].iloc[0], errors='coerce') + pd.Timedelta(days=30)):
+        fecha_creacion = df_familia['fecha'].iloc[0]
+        fe = fecha_de_modificacion
+
+        if pd.to_datetime(row.get('fecha'), errors='coerce') > (
+                pd.to_datetime(fecha_creacion, errors='coerce') + pd.Timedelta(days=30)):
             if not df_familia['validacion'].str.contains('ERROR EN CARACTERIZACION').any():
-                return f" 1 | ACTUALIZACION DE FICHA PERSONA {df_persona['numerodoc'].iloc[0]} | O"
+                return f" 1 | ACTUALIZACION DE FICHA PERSONA {df_persona['doc_id'].iloc[0]} | O"
             return f" 1 | {str(df_familia['validacion'].iloc[0]).strip()} | O"
 
     if['observacion_id'] is not None and row.get('observacion_id') != 'nan':
