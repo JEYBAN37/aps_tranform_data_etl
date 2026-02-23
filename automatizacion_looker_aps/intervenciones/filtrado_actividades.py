@@ -4,6 +4,8 @@ import json
 import pandas as pd
 
 from automatizacion_looker_aps.query.query_intervenciones import query_intervenciones
+from automatizacion_looker_aps.utils.cargar_big_query import cargar_csv_a_bigquery
+from automatizacion_looker_aps.utils.sobrescribir_sheets import sobrescribir_hoja
 from mysql_conector import ejecutar_consulta_mysql
 
 def limpiar_id (df, column_name):
@@ -17,9 +19,8 @@ def limpiar_id (df, column_name):
     return df
 
 
-def filtro_actividades(cursor,df_familia, db, df_personas):
-    df_familia = pd.read_csv('df_familia.csv')  # Cargar df_familia para depuración
-    df_personas = pd.read_csv('df_personas.csv')  # Cargar df_personas para depuración
+def filtro_actividades(cursor,df_familia, db, df_personas,reporte,client,sheet_id):
+
     acumulado_actividades = []
 
     for database in db:
@@ -78,10 +79,19 @@ def filtro_actividades(cursor,df_familia, db, df_personas):
     # organizar las fechas por mas antiguo a mas reciente para cada responsable
     df_actividades_consolidados = df_actividades_consolidados.sort_values(['responsable_id', 'fecha'], ascending=[True, True])
 
-    #df_actividades_consolidados = df_actividades_consolidados.drop_duplicates(subset=['responsable_id', 'fecha'], keep='first')
+
+    df_actividades_consolidados = df_actividades_consolidados.drop_duplicates(subset=['responsable_id', 'fecha','observacion_id','conteo_plan_cuidado'], keep='first')
 
     print(f"Caracterizaciones Nuevas {df_actividades_consolidados['conteo_nuevas_caracterizaciones']}")
     print(f"Total de actividades encontradas: {len(df_actividades_consolidados)}")
+
+
+
+    cargar_csv_a_bigquery(df_actividades_consolidados, table_id="datos_aps.actividades", project_id="aps-project-478903",
+                          columnas_fecha=['fecha'])
+
+    sobrescribir_hoja(sheet_id, f"cosolidado_actividades_{reporte}", df_actividades_consolidados,client)
+
 
 def verificar_nuevas_caracterizaciones(row, df_familias):
     registro_json = json_to_dict(row)
@@ -91,7 +101,7 @@ def verificar_nuevas_caracterizaciones(row, df_familias):
         print(f"Verificando nueva caracterización para sociambiental_id: {sociambiental_id}")
         df_familia = df_familias[df_familias['sociambiental_id'] == int(float(sociambiental_id))]
 
-        if not registro_json.get('updateDate') and registro_json.get('fecha') > '2025-12-31' and not df_familia.empty:
+        if not registro_json.get('updateDate') and  row.get('fecha') > '2025-12-31' and not df_familia.empty:
             if 'validacion' in df_familia.columns:
                 no_error_mask = ~df_familia['validacion'].astype(str).str.contains('ERROR EN CARACTERIZACION', na=False)
                 count_ok = int(no_error_mask.sum())

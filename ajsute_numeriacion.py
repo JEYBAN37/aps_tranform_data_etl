@@ -94,8 +94,13 @@ def unir_csv_falla_familias ():
     print("Archivos CSV unidos correctamente.")
 
 def convertir_to_json():
-    ruta_csv = "cv/Formato_Cronograma.xlsx"
-    df = pd.read_excel(ruta_csv)
+    sheet_id = "1dqkisXc5OQNKTWd4YgMKnW5vu382FSR6"
+    sheet_name = "CRONOGRAMA_SEMANA_4"  # El nombre de la pestaña
+
+    # Formateamos la URL para descargar como CSV
+    url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
+
+    df = pd.read_csv(url)
     df['id'] = df.index + 1
 
     # Convert common date columns to a JS-friendly array: [year, monthIndex, day, hour, minute]
@@ -108,6 +113,8 @@ def convertir_to_json():
                     return None
                 return [int(dt.year), int(dt.month), int(dt.day), int(dt.hour), int(dt.minute)]
             df[col] = df[col].apply(to_js_array)
+
+    df['territorio'] = df['territorio'].apply(lambda x: None if pd.isna(x) else str(x).replace(" ", ""))
 
     # If `url` column exists, ensure missing values become JSON null
     if 'url' in df.columns:
@@ -126,9 +133,9 @@ def convertir_to_json():
 
 
 if __name__ == "__main__":
-    main()
+    #main()
     #cargar_indicadores()
     #unir_csv_falla_coordenadas()
     #unir_csv_falla_familias()
-    #convertir_to_json()
+    convertir_to_json()
 

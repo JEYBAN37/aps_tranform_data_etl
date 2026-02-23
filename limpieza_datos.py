@@ -40,22 +40,22 @@ def main():
 
     try:
 
-        #cursor = connection.cursor()
-        #personas = cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1g6865j3cOGhkj6VAkfIqcJqScB4eWTXUqrZx16Czhuo")
-        #connection.commit()
-
-
-        #cursor = connection.cursor()
-        #familias = cargar_familias( cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI")
-        #connection.commit()
-
         cursor = connection.cursor()
-        filtro_actividades(cursor, 'familias', DATABASE, 'personas')
+        personas = cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1g6865j3cOGhkj6VAkfIqcJqScB4eWTXUqrZx16Czhuo")
         connection.commit()
 
-        #cursor = connection.cursor()
-        #cargar_novedades(cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1Yr9gvmWQ7i6ANgI-9LAW8Yfwi6HScJfF7ll3nm0StTE")
-        #connection.commit()
+
+        cursor = connection.cursor()
+        familias = cargar_familias( cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI")
+        connection.commit()
+
+        cursor = connection.cursor()
+        filtro_actividades(cursor, familias, DATABASE, personas,FE_REPORTE,client,"1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI")
+        connection.commit()
+
+        cursor = connection.cursor()
+        cargar_novedades(cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"14NIa4AlbXU5pVXmhLBbJwnidy4HmI2ZatFfMJ91ThXw")
+        connection.commit()
 
 
     except Exception as e:
