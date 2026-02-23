@@ -74,11 +74,10 @@ def cargar_familias(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
 
     df_familias_consolidados['reporte_fecha'] = FE_REPORTE
 
-    #cargar_csv_a_bigquery(df_familias_consolidados, table_id="datos_aps.familias", project_id="aps-project-478903",
-                          #columnas_fecha=['date', 'fecha', 'reporte_fecha'])
+    cargar_csv_a_bigquery(df_familias_consolidados, table_id="datos_aps.familias", project_id="aps-project-478903",
+                          columnas_fecha=['date', 'fecha', 'reporte_fecha'])
 
-    #sobrescribir_hoja(sheet_id, "cosolidado_familias", df_familias_consolidados,
-                    #client)
+    sobrescribir_hoja(sheet_id, "cosolidado_familias", df_familias_consolidados,client)
 
     return df_familias_consolidados
 
