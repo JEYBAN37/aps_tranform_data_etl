@@ -115,6 +115,7 @@ def convertir_to_json():
             df[col] = df[col].apply(to_js_array)
 
     df['territorio'] = df['territorio'].apply(lambda x: None if pd.isna(x) else str(x).replace(" ", ""))
+    df['celular'] = df['celular'].apply(lambda x: None if pd.isna(x) else str(x).replace(" ", ""))
 
     # If `url` column exists, ensure missing values become JSON null
     if 'url' in df.columns:
