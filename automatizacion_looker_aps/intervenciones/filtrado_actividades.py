@@ -19,7 +19,7 @@ def limpiar_id (df, column_name):
     return df
 
 
-def filtro_actividades(cursor,df_familia, db, df_personas,reporte,client,sheet_id):
+def filtro_actividades(cursor,df_familia, db, df_personas,reporte,client,sheet_id,responsables_ebs):
 
     acumulado_actividades = []
 
@@ -67,7 +67,13 @@ def filtro_actividades(cursor,df_familia, db, df_personas,reporte,client,sheet_i
         lambda row: verificar_plan_cuidado(row, df_familia), axis=1
     )
 
-    colums = ['responsable_id', 'fecha','historial','observacion_id','familia_id','sociambiental_id','juventudadultos_id','responsable_nombre','responsable_profesion', 'conteo_nuevas_caracterizaciones', 'conteo_actualizaciones_ficha','conteo_plan_cuidado']
+    df_actividades_consolidados['id_familia_plan'] = df_actividades_consolidados.apply(
+        lambda row: row['conteo_plan_cuidado'].split('|')[-1].strip() if row['conteo_plan_cuidado'] != '0' else '0', axis=1
+    )
+
+    df_actividades_consolidados['conteo_plan_cuidado'] = df_actividades_consolidados['conteo_plan_cuidado'].apply(lambda x: x.split('|')[0].strip() if x != '0' else '0')
+
+    colums = ['responsable_id', 'fecha','observacion_id','familia_id','sociambiental_id','juventudadultos_id','responsable_nombre','responsable_profesion', 'conteo_nuevas_caracterizaciones', 'conteo_actualizaciones_ficha','conteo_plan_cuidado','id_familia_plan']
 
     df_actividades_consolidados = (
         df_actividades_consolidados
@@ -80,18 +86,55 @@ def filtro_actividades(cursor,df_familia, db, df_personas,reporte,client,sheet_i
     df_actividades_consolidados = df_actividades_consolidados.sort_values(['responsable_id', 'fecha'], ascending=[True, True])
 
 
-    df_actividades_consolidados = df_actividades_consolidados.drop_duplicates(subset=['responsable_id', 'fecha','observacion_id','conteo_plan_cuidado'], keep='first')
+    df_actividades_consolidados = df_actividades_consolidados.drop_duplicates(subset=['responsable_id','observacion_id','conteo_plan_cuidado'], keep='first')
 
     print(f"Caracterizaciones Nuevas {df_actividades_consolidados['conteo_nuevas_caracterizaciones']}")
     print(f"Total de actividades encontradas: {len(df_actividades_consolidados)}")
 
+    #cargar_actividades(df_actividades_consolidados, reporte, sheet_id, client)
+
+    #df_responsables_plan_cuidado = df_actividades_consolidados[df_actividades_consolidados['conteo_plan_cuidado'] != '0']
+
+    #df_responsables_plan_cuidado['responsables_ebs'] = df_responsables_plan_cuidado.apply(lambda row: agregar_responsables(row, responsables_ebs, df_familia), axis=1)
+
+    #df_responsables_plan_cuidado['responsables_ebs'] = descomponer_responsables(df_responsables_plan_cuidado)['responsable_asignado']
+
+    #cargar_ebs(df_responsables_plan_cuidado, reporte)
 
 
-    cargar_csv_a_bigquery(df_actividades_consolidados, table_id="datos_aps.actividades", project_id="aps-project-478903",
+def descomponer_responsables(df_responsables_plan_cuidado):
+    expanded_rows = []
+    for _, r in df_responsables_plan_cuidado.iterrows():
+        if r['responsables_ebs'] != '0':
+            responsables_str = r['responsables_ebs']
+            names = [s.strip() for s in responsables_str.split('|') if s.strip()]
+            for name in names:
+                new_row = r.copy()
+                new_row['responsable_asignado'] = name
+                expanded_rows.append(new_row)
+
+    return pd.DataFrame(expanded_rows).reset_index(drop=True)
+
+
+def cargar_ebs (df_responsables_plan_cuidado, reporte):
+    df_responsables_plan_cuidado.to_csv(F'../reportes/{reporte}/looker/responsables_plan_cuidado_{reporte}.csv',
+                                       index=False)
+
+    cargar_csv_a_bigquery(df_responsables_plan_cuidado, table_id="datos_aps.actividades",
+                          project_id="aps-project-478903",
                           columnas_fecha=['fecha'])
 
-    sobrescribir_hoja(sheet_id, f"cosolidado_actividades_{reporte}", df_actividades_consolidados,client)
 
+def cargar_actividades(df_actividades_consolidados, reporte, sheet_id, client):
+    cargar_csv_a_bigquery(df_actividades_consolidados, table_id="datos_aps.ebs_planes_cuidado",
+                          project_id="aps-project-478903",
+                          columnas_fecha=['fecha'])
+
+    df_actividades_consolidados.to_csv(F'../reportes/{reporte}/looker/consolidado_actividades_{reporte}.csv',
+                                       index=False)
+
+    # df_actividades_consolidados = df_actividades_consolidados.delete(columns=['historial'])
+    #sobrescribir_hoja(sheet_id, "consolidado_actividades", df_actividades_consolidados, client)
 
 def verificar_nuevas_caracterizaciones(row, df_familias):
     registro_json = json_to_dict(row)
@@ -205,19 +248,48 @@ def verificar_plan_cuidado(row, df_familias):
     plan_de_cuidado = registro_json.get('plancuidado')
 
     if ['observacion_id'] is not None and observacion_id != 'nan' and not registro_json.get('dirfamilliograma'):
-        df_familia = df_familias[df_familias['familia_id'] == int(float(registro_json.get('familia_id')))]
+        familia_id = registro_json.get('familia_id')
+        df_familia = df_familias[df_familias['familia_id'] == int(float(familia_id))]
 
         if df_familia.empty:
-            return " 1 | PLAN DE CUIDADO NO VALIDO  "
+            return f"PLAN DE CUIDADO NO VALIDO  | {familia_id}"
 
         if df_familia['validacion'].str.contains('ERROR EN CARACTERIZACION').any():
-            return f" 1 | PLAN DE CUIDADO CON {str(df_familia['validacion'].iloc[0]).strip()} "
+            return f"PLAN DE CUIDADO CON {str(df_familia['validacion'].iloc[0]).strip()}   | {familia_id}"
         if plan_de_cuidado :
-            return f" 1 | PLAN DE CUIDADO FIRMADO"
-        else:
-            return f" 1 | PLAN DE CUIDADO CREADO"
+            return f"PLAN DE CUIDADO FIRMADO | {familia_id}"
+        if registro_json.get('actividaddesarrollar'):
+            return f"PLAN DE CUIDADO CREADO | {familia_id}"
+        else :
+            return f"0"
 
     return '0'
+
+def agregar_responsables(row, df_responsables,df_familias):
+
+    if row.get('conteo_plan_cuidado') == 'PLAN DE CUIDADO FIRMADO':
+        id_familia_plan = row.get('id_familia_plan')
+        df_familia = df_familias[df_familias['familia_id'] == int(float(id_familia_plan))]
+
+        if not df_familia.empty:
+            ebs = df_familia['involucrado_plan_cuidado']
+
+            if pd.isna(ebs) or ebs == 'nan' or ebs.strip() == '':
+                return "0"
+
+            array_validacion = ebs.split('|') if pd.notna(ebs) else []
+
+            responsables = ''
+
+            for i in range(len(array_validacion)):
+                array_validacion[i] = array_validacion[i].strip()
+                responsable = df_responsables[df_responsables['id'].isin(i)]
+                if not responsable.empty:
+                    responsables += responsable['nombre'].iloc[0] + ' | '
+
+            return responsables
+    return "0"
+
 
 
 

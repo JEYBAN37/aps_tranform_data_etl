@@ -31,8 +31,8 @@ def cargar_novedades(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id
         df_distribucion_redes.set_index('TERRITORIO')['RED']
     ).fillna('')
 
-    df_novedades_consolidado.to_csv(
-        F'../reportes/{FE_REPORTE}/looker/cosolidado_novedades_{FE_REPORTE}.csv')
+    #df_novedades_consolidado.to_csv(
+        #F'../reportes/{FE_REPORTE}/looker/cosolidado_novedades_{FE_REPORTE}.csv')
 
     # Convertir Timestamps a string
 

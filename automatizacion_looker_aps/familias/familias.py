@@ -32,7 +32,7 @@ def cargar_familias(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
 
     for i, col in enumerate(df_familias_consolidados.columns):
         if df_familias_consolidados.dtypes.iloc[i] == object and col not in (
-                'longitud', 'latitud', 'familiograma', 'plancuidado'):
+                'longitud', 'latitud', 'familiograma', 'plancuidado','involucrado_plan_cuidado'):
             df_familias_consolidados.iloc[:, i] = df_familias_consolidados.iloc[:, i].astype(
                 str).str.strip().str.replace(r'[^\w\s]', '', regex=True)
 
