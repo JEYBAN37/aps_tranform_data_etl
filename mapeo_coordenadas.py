@@ -4,7 +4,7 @@ import fiona
 import mysql.connector
 import pandas as pd
 
-from credenciales import MYSQL_APS, MYSQL_REPLICA_USER, DATABASE_APS2024, MYSQL_REPLICA_PASSWORD, DATABASE, \
+from credenciales import MYSQL_APS, MYSQL_REPLICA_USER, MYSQL_REPLICA_PASSWORD, DATABASE, \
     DATABASE_APS2025
 from mysql_conector import ejecutar_consulta_mysql
 
@@ -16,14 +16,14 @@ def main():
         host=MYSQL_APS,
         user=MYSQL_REPLICA_USER,
         password=MYSQL_REPLICA_PASSWORD,
-        database=DATABASE_APS2024,
+        database=DATABASE_APS2025,
         autocommit=False
     )
     try:
         cursor = connection.cursor(dictionary=True)  # Usar dictionary=True facilita el manejo
-        territorio_name = 'T53'
-        territori_mc = 'Territorio17.1'
-        territori_nm = '17.1'
+        territorio_name = 'T32'
+        territori_mc = 'Territorio 8.6'
+        territori_nm = '8.6'
         # Consulta SQL
         sql = f"""
         SELECT 
@@ -33,9 +33,9 @@ def main():
             s.longitud,
             f.apellidos,
             f.celular
-        FROM {DATABASE_APS2024}.familias f
-        LEFT JOIN {DATABASE_APS2024}.sociambientals s ON s.id = f.sociambiental_id
-        LEFT JOIN {DATABASE_APS2024}.ubicaciones u ON u.id = s.ubicacion_id
+        FROM {DATABASE_APS2025}.familias f
+        LEFT JOIN {DATABASE_APS2025}.sociambientals s ON s.id = f.sociambiental_id
+        LEFT JOIN {DATABASE_APS2025}.ubicaciones u ON u.id = s.ubicacion_id
         WHERE u.territorio = '{territorio_name}' AND s.latitud IS NOT NULL
         """
         cursor.execute(sql)

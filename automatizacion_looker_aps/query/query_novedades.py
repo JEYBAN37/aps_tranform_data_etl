@@ -16,7 +16,7 @@ def query_novedades(database):
                 v.observacion
             FROM {database}.visitasnegadas v 
 
-            LEFT JOIN agsolutic_aps2024.ubicaciones u 
+            LEFT JOIN {database}.ubicaciones u 
                    ON v.ubicacion_id = u.id
 
             LEFT JOIN {database}.responsables r 

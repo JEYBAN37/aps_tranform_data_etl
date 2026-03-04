@@ -88,17 +88,20 @@ def cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
     # quiero contar cuantos registros hay por estado
     total_rows = len(df_personas_consolidados)
 
-    df_personas_consolidados.to_csv(
-        F'../reportes/{FE_REPORTE}/looker/cosolidado_personas_{FE_REPORTE}.csv')
+
 
     #df_personas_consolidados.to_csv(F'../crucez/base_actualizada/cosolidado_personas_{FE_REPORTE}.csv', index=False)
 
     df_personas_consolidados['reporte_fecha'] = FE_REPORTE
 
-    cargar_csv_a_bigquery(df_personas_consolidados, table_id="datos_aps.personas", project_id="aps-project-478903",
-                          columnas_fecha=['fechanac', 'fecha', 'reporte_fecha'])
+    if FE_REPORTE:
+        df_personas_consolidados.to_csv(
+            F'../reportes/{FE_REPORTE}/looker/cosolidado_personas_{FE_REPORTE}.csv')
 
-    sobrescribir_hoja(sheet_id, "cosolidado_personas", df_personas_consolidados,
-                    client)
+        cargar_csv_a_bigquery(df_personas_consolidados, table_id="datos_aps.personas", project_id="aps-project-478903",
+                              columnas_fecha=['fechanac', 'fecha', 'reporte_fecha'])
+
+        sobrescribir_hoja(sheet_id, "cosolidado_personas", df_personas_consolidados,
+                        client)
 
     return df_personas_consolidados

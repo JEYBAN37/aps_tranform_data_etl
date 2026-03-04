@@ -82,16 +82,19 @@ def filtro_actividades(cursor,df_familia, db, df_personas,reporte,client,sheet_i
         .reset_index(name='count')
         .sort_values(['responsable_id', 'fecha'], ascending=[True, False]))
 
-    # organizar las fechas por mas antiguo a mas reciente para cada responsable
-    df_actividades_consolidados = df_actividades_consolidados.sort_values(['responsable_id', 'fecha'], ascending=[True, True])
 
+    df_actividades_consolidados = df_actividades_consolidados.sort_values(['responsable_id', 'fecha'],
+                                                                          ascending=[True, True])
 
-    df_actividades_consolidados = df_actividades_consolidados.drop_duplicates(subset=['responsable_id','observacion_id','conteo_plan_cuidado'], keep='first')
+    df_actividades_consolidados = df_actividades_consolidados.drop_duplicates(
+        subset=['responsable_id', 'observacion_id', 'conteo_plan_cuidado'],
+        keep='first'
+    ).reset_index(drop=True)
 
     print(f"Caracterizaciones Nuevas {df_actividades_consolidados['conteo_nuevas_caracterizaciones']}")
     print(f"Total de actividades encontradas: {len(df_actividades_consolidados)}")
 
-    #cargar_actividades(df_actividades_consolidados, reporte, sheet_id, client)
+    cargar_actividades(df_actividades_consolidados, reporte, sheet_id, client)
 
     #df_responsables_plan_cuidado = df_actividades_consolidados[df_actividades_consolidados['conteo_plan_cuidado'] != '0']
 
@@ -120,13 +123,13 @@ def cargar_ebs (df_responsables_plan_cuidado, reporte):
     df_responsables_plan_cuidado.to_csv(F'../reportes/{reporte}/looker/responsables_plan_cuidado_{reporte}.csv',
                                        index=False)
 
-    cargar_csv_a_bigquery(df_responsables_plan_cuidado, table_id="datos_aps.actividades",
+    cargar_csv_a_bigquery(df_responsables_plan_cuidado, table_id="datos_aps.ebs_planes_cuidado",
                           project_id="aps-project-478903",
                           columnas_fecha=['fecha'])
 
 
 def cargar_actividades(df_actividades_consolidados, reporte, sheet_id, client):
-    cargar_csv_a_bigquery(df_actividades_consolidados, table_id="datos_aps.ebs_planes_cuidado",
+    cargar_csv_a_bigquery(df_actividades_consolidados, table_id="datos_aps.actividades",
                           project_id="aps-project-478903",
                           columnas_fecha=['fecha'])
 

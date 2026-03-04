@@ -8,9 +8,15 @@ from automatizacion_looker_aps.novedades.novedades import cargar_novedades
 from automatizacion_looker_aps.personas.personas import cargar_personas
 from automatizacion_looker_aps.responsables.responsable import cargar_responsables
 from cargar_usuarios import cargar_responsable
-from credenciales import MYSQL_APS, MYSQL_REPLICA_USER, DATABASE_APS2024, MYSQL_REPLICA_PASSWORD, DATABASE
+from credenciales import MYSQL_APS, MYSQL_REPLICA_USER, MYSQL_REPLICA_PASSWORD, DATABASE, \
+    DATABASE_APS2025
 from datetime import datetime
 import gspread
+
+
+def extraer_distribucion_redes():
+    url_distribucion_redes = "https://docs.google.com/spreadsheets/d/1qChAneFYqnsUHOMPrxgPLNY36vqn-bmtMq6qnVTrYI4/export?format=csv&gid=0"
+    return pd.read_csv(url_distribucion_redes)
 
 
 def main():
@@ -21,7 +27,7 @@ def main():
         host=MYSQL_APS,
         user=MYSQL_REPLICA_USER,
         password=MYSQL_REPLICA_PASSWORD,
-        database=DATABASE_APS2024,
+        database=DATABASE_APS2025,
         autocommit=False  # Disable autocommit
     )
 
@@ -30,7 +36,7 @@ def main():
 
     FE_REPORTE = datetime.now().strftime('%Y-%m-%d')
 
-    url_distribucion_redes = "https://docs.google.com/spreadsheets/d/1qChAneFYqnsUHOMPrxgPLNY36vqn-bmtMq6qnVTrYI4/export?format=csv&gid=0"
+
 
     creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
 
@@ -38,7 +44,8 @@ def main():
 
     os.makedirs(F'../reportes/{FE_REPORTE}/looker', exist_ok=True)
 
-    df_distribucion_redes = pd.read_csv(url_distribucion_redes)
+    df_distribucion_redes = extraer_distribucion_redes()
+
 
     try:
 
@@ -46,10 +53,15 @@ def main():
         personas = cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1g6865j3cOGhkj6VAkfIqcJqScB4eWTXUqrZx16Czhuo")
         connection.commit()
 
+        #personas_url = "F:/APS AUTOMATIZACIONES/reportes/2026-03-03/looker/cosolidado_personas_2026-03-03.csv"
+        #df_personas = pd.read_csv(personas_url)
 
         cursor = connection.cursor()
         familias = cargar_familias( cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI")
         connection.commit()
+
+        #familias_url = "F:/APS AUTOMATIZACIONES/reportes/2026-03-03/looker/cosolidado_personas_2026-03-03.csv"
+        #df_familia = pd.read_csv(familias_url)
 
         cursor = connection.cursor()
         responsables_ebs = cargar_responsables( cursor, DATABASE)
