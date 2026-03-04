@@ -3,7 +3,7 @@ import json
 
 def convertir_to_json():
     sheet_id = "1dqkisXc5OQNKTWd4YgMKnW5vu382FSR6"
-    sheet_name = "CRONOGRAMA_SEMANA_4"  # El nombre de la pestaña
+    sheet_name = "CRONOGRAMA_SEMANA_5"  # El nombre de la pestaña
 
     # Formateamos la URL para descargar como CSV
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
@@ -23,7 +23,10 @@ def convertir_to_json():
             df[col] = df[col].apply(to_js_array)
 
     df['territorio'] = df['territorio'].apply(lambda x: None if pd.isna(x) else str(x).replace(" ", ""))
-    df['celular'] = df['celular'].apply(lambda x: None if pd.isna(x) else str(x).replace(" ", ""))
+    df['celular'] = df['celular'].apply(
+        lambda x: None if pd.isna(x) else (lambda s: s[:-2] if s.endswith(",00") else s)(str(x).replace(" ", "")))
+    df['celular'] = df['celular'].apply(lambda x: None if pd.isna(x) else str(x).replace(".", ""))
+    df['celular'] = df['celular'].apply(lambda x: None if pd.isna(x) else str(x).replace(",", ""))
     df['db'] = df['db'].apply(lambda x: None if pd.isna(x) else str(x).replace(" ", ""))
     df['descripcion'] = df['descripcion'].apply(lambda x: "" if pd.isna(x) else str(x).replace(" ", ""))
 
