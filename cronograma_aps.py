@@ -3,7 +3,7 @@ import json
 
 def convertir_to_json():
     sheet_id = "1dqkisXc5OQNKTWd4YgMKnW5vu382FSR6"
-    sheet_name = "CRONOGRAMA_SEMANA_5"  # El nombre de la pestaña
+    sheet_name = "CRONOGRAMA_SEMANA_6"  # El nombre de la pestaña
 
     # Formateamos la URL para descargar como CSV
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
