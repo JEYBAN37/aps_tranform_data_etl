@@ -4,7 +4,7 @@ import json
 import pandas as pd
 
 from automatizacion_looker_aps.query.query_intervenciones import query_intervenciones
-from automatizacion_looker_aps.utils.cargar_big_query import cargar_csv_a_bigquery
+from automatizacion_looker_aps.utils.cargar_big_query import cargar_csv_a_bigquery, limpiar_formatos
 from automatizacion_looker_aps.utils.sobrescribir_sheets import sobrescribir_hoja
 from mysql_conector import ejecutar_consulta_mysql
 
@@ -129,14 +129,14 @@ def cargar_ebs (df_responsables_plan_cuidado, reporte):
 
 
 def cargar_actividades(df_actividades_consolidados, reporte, sheet_id, client):
+    df_actividades_consolidados =limpiar_formatos(df_actividades_consolidados, columnas_fecha=['fecha'])
     cargar_csv_a_bigquery(df_actividades_consolidados, table_id="datos_aps.actividades",
-                          project_id="aps-project-478903",
-                          columnas_fecha=['fecha'])
+                          project_id="aps-project-478903")
 
     df_actividades_consolidados.to_csv(F'../reportes/{reporte}/looker/consolidado_actividades_{reporte}.csv',
                                        index=False)
 
-    # df_actividades_consolidados = df_actividades_consolidados.delete(columns=['historial'])
+    #df_actividades_consolidados = df_actividades_consolidados.delete(columns=['historial'])
     #sobrescribir_hoja(sheet_id, "consolidado_actividades", df_actividades_consolidados, client)
 
 def verificar_nuevas_caracterizaciones(row, df_familias):

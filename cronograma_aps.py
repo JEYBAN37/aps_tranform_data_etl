@@ -7,6 +7,11 @@ def convertir_to_json():
 
     # Formateamos la URL para descargar como CSV
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
+    url_jefes = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=NUMEROS_JEFES"
+
+
+    df_numero_jefes = pd.read_csv(url_jefes)
+
 
     df = pd.read_csv(url)
     df['id'] = df.index + 1

@@ -1,7 +1,7 @@
 import pandas as pd
 
 from automatizacion_looker_aps.query.query_persona import query_persona
-from automatizacion_looker_aps.utils.cargar_big_query import cargar_csv_a_bigquery
+from automatizacion_looker_aps.utils.cargar_big_query import cargar_csv_a_bigquery, limpiar_formatos
 from automatizacion_looker_aps.utils.sobrescribir_sheets import sobrescribir_hoja
 from mysql_conector import ejecutar_consulta_mysql
 
@@ -98,8 +98,9 @@ def cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
         df_personas_consolidados.to_csv(
             F'../reportes/{FE_REPORTE}/looker/cosolidado_personas_{FE_REPORTE}.csv')
 
-        cargar_csv_a_bigquery(df_personas_consolidados, table_id="datos_aps.personas", project_id="aps-project-478903",
-                              columnas_fecha=['fechanac', 'fecha', 'reporte_fecha'])
+        df_personas_consolidados = limpiar_formatos( df_personas_consolidados, columnas_fecha=['fechanac', 'fecha', 'reporte_fecha'])
+
+        cargar_csv_a_bigquery(df_personas_consolidados, table_id="datos_aps.personas", project_id="aps-project-478903")
 
         sobrescribir_hoja(sheet_id, "cosolidado_personas", df_personas_consolidados,
                         client)
