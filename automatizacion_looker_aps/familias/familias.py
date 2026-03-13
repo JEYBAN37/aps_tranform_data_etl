@@ -1,7 +1,7 @@
 import pandas as pd
 
 from automatizacion_looker_aps.query.query_familia import query_familia
-from automatizacion_looker_aps.utils.cargar_big_query import cargar_csv_a_bigquery
+from automatizacion_looker_aps.utils.cargar_big_query import cargar_csv_a_bigquery, limpiar_formatos
 from automatizacion_looker_aps.utils.sobrescribir_sheets import sobrescribir_hoja
 from export_aps_124 import limpiar_formato_longitud, limpiar_formato_latitud
 from mysql_conector import ejecutar_consulta_mysql
@@ -74,8 +74,10 @@ def cargar_familias(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
 
     df_familias_consolidados['reporte_fecha'] = FE_REPORTE
 
+    df_familias_consolidados = limpiar_formatos( df_familias_consolidados, columnas_fecha=['fecha', 'reporte_fecha'])
+
     cargar_csv_a_bigquery(df_familias_consolidados, table_id="datos_aps.familias", project_id="aps-project-478903",
-                          columnas_fecha=['date', 'fecha', 'reporte_fecha'])
+                          )
 
     sobrescribir_hoja(sheet_id, "cosolidado_familias", df_familias_consolidados,client)
 

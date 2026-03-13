@@ -51,7 +51,9 @@ def descargar_contratos():
     df_verificar_manualmente = df_contratos[df_contratos["URLProceso"].isna()].drop_duplicates(["1.6", "URLProceso"])
 
     # Ajusta aquí cuántos contratos quieres procesar
-    df_test = df_por_descargar.head(5)
+    start_idx = 0
+    end_idx = 5
+    df_test = df_por_descargar.iloc[start_idx:end_idx]
 
     base_dir = "1778"
 
