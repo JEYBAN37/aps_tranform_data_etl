@@ -1,6 +1,7 @@
 import os
 import mysql.connector
 import pandas as pd
+from google.auth.exceptions import GoogleAuthError
 from google.oauth2.service_account import Credentials
 from automatizacion_looker_aps.familias.familias import cargar_familias
 from automatizacion_looker_aps.intervenciones.filtrado_actividades import filtro_actividades
@@ -45,6 +46,29 @@ def main():
     os.makedirs(F'../reportes/{FE_REPORTE}/looker', exist_ok=True)
 
     df_distribucion_redes = extraer_distribucion_redes()
+
+    path_creds = "credentials.json"
+    try:
+        # 1. Verificar si el archivo existe físicamente
+        if not os.path.exists(path_creds):
+            print(f"❌ ERROR: El archivo '{path_creds}' no existe en: {os.getcwd()}")
+        else:
+            print(f"✅ Archivo '{path_creds}' encontrado.")
+
+        # 2. Intentar cargar las credenciales
+        creds = Credentials.from_service_account_file(path_creds, scopes=scope)
+        print("✅ Credenciales cargadas correctamente desde el archivo.")
+
+        # 3. Probar autorización con Google Sheets
+        client = gspread.authorize(creds)
+        # Intentar listar archivos (solo para probar conexión)
+        client.list_spreadsheet_files()
+        print("🚀 ¡Conexión exitosa! No hay bloqueos de Google.")
+
+    except GoogleAuthError as e:
+        print(f"❌ Error de Autenticación: {e}")
+    except Exception as e:
+        print(f"❌ Se produjo un error inesperado: {e}")
 
 
     try:
