@@ -32,6 +32,12 @@ def to_js_array(dt):
         int(dt.minute)
     ]
 
+def to_js_array_perfiles(perfiles):
+    if pd.isna(perfiles):
+        return None
+    perfiles_list = [str(p).strip() for p in str(perfiles).split(",")]
+    return perfiles_list
+
 def convertir_to_json():
     sheet_id = "197y-WIQM_zu6pJdoDNCelnQZyTr-d9TujUzX2jTsuSY"
     sheet_name = "RESPUESTAS"  # El nombre de la pestaña
@@ -45,7 +51,6 @@ def convertir_to_json():
     df_numero_jefes = pd.read_csv(url_jefes)[['JEFE','CELULAR']].drop_duplicates()
 
     df = pd.read_csv(url)
-    df['id'] = df.index + 1
     df = df.merge(df_numero_jefes,  left_on="Responsable de EBS", right_on="JEFE", how="left")
     df_cargar = df[df["CELULAR"].notna()]
     df_verificar_manualmente = df[df["CELULAR"].isna()]
@@ -65,14 +70,18 @@ def convertir_to_json():
     df['celular'] = df['celular'].apply(lambda x: None if pd.isna(x) else str(x).replace(".", ""))
     df['celular'] = df['celular'].apply(lambda x: None if pd.isna(x) else str(x).replace(",", ""))
     df['db'] = df['RED'].apply(lambda x: None if pd.isna(x) else str(x).replace(" ", ""))
-    df['title'] = df['Nombre de la Actividad a Realizar'].apply(lambda x: None if pd.isna(x) else str(x).replace(" ", ""))
-    df['descripcion'] = df['Si es otra Especifique la actividad'].apply(lambda x: "" if pd.isna(x) else str(x).replace(" ", ""))
-    df['equipo'] = df['Territorio asignado'].apply(lambda x: "" if pd.isna(x) else str(x).replace(" ", ""))
-    df['novedad'] = df['Novedad'].apply(lambda x: "" if pd.isna(x) else str(x).replace(" ", ""))
-    df['responsable'] = df['Responsable de EBS'].apply(lambda x: "" if pd.isna(x) else str(x).replace(" ", ""))
+    df['title'] = df['Nombre de la Actividad a Realizar']
+    df['descripcion'] = df['Si es otra Especifique la actividad']
+    df['equipo'] = df['EBS']
+    df['novedad'] = df['Novedad']
+    df['responsable'] = df['Responsable de EBS']
     df['start'] = df['Fecha de Inicio de Actividad']
     df['end'] = df['Fecha de Finalización de Actividad']
     df['ubicacion'] = df['Ubicación Especifica, en que parte del territorio esta']
+    df['perfiles'] = df['Perfiles en la Actividad'].apply(to_js_array_perfiles)
+
+    df = df_cargar.reset_index(drop=True)
+    df['id'] = df.index + 1
 
 
     # If `url` column exists, ensure missing values become JSON null
@@ -83,7 +92,7 @@ def convertir_to_json():
     df = df.where(pd.notnull(df), None)
 
     colums = ['id', 'title', 'descripcion', 'start', 'end', 'territorio', 'celular', 'url', 'ubicacion', 'responsable',
-              'novedad', 'db', 'equipo']
+              'novedad', 'db', 'equipo', 'perfiles']
     for c in colums:
         if c not in df.columns:
             df[c] = None
