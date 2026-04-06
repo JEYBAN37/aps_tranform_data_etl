@@ -163,7 +163,7 @@ def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo, recurso):
         'codigo_adminitarativo':'1',
         'numero_contrato': row['numero_contrato'],
         'tipo_contrato': '1',
-        'numero_acta': row['orden'],
+        'numero_acta': str(row['valor']).split('.')[0],
         'fecha_acta': row['fecha'],
         'valor_acta': f"{str(row['valor']).split('.')[0]}.00",
         'valor_pagado':  f"{str(row['valor']).split('.')[0]}.00",
@@ -244,9 +244,9 @@ def main():
     # 2
     '900091143',
     # 3
-    '2025-11-01',
+    '2026-03-01',
     # 4
-    '2025-11-30',
+    '2026-03-31',
     ]
 
     PROPIEDADES_TIPO_2 = [
@@ -281,9 +281,9 @@ def main():
         ]
     ]
 
-    url = 'activos/reporte_ser/RESOLUCION_873_TIPO_3_DIC.xlsx'
+    url = 'activos/reporte_ser/RESOLUCION_873_TIPO_3_FEB_2026.xlsx'
     ur_polisa = 'activos/polisa_1397_actualizacion.xlsx'
-    url_flujo = 'activos/reporte_ser/RESOLUCION_873_TIPO_5_DIC.xlsx'
+    url_flujo = 'activos/reporte_ser/RESOLUCION_873_TIPO_5_MAR_2026.xlsx'
     url_rendimiento = 'activos/rendimientos_1976.xlsx'
 
 
@@ -293,9 +293,10 @@ def main():
     sumar_valores = 'activos/ap.xlsx'
 
     # Read the Excel file
-    df = pd.read_excel(url, engine='openpyxl')  # Ensure `openpyxl` is installed
+
+    df = pd.read_excel(url, engine='openpyxl',sheet_name='CARGAR')  # Ensure `openpyxl` is installed
     df_recurso_4 = pd.read_excel(ur_polisa)  # Ensure `openpyxl` is installed
-    df_recurso_5 = pd.read_excel(url_flujo, engine='openpyxl')  # Ensure `openpyxl` is installed
+    df_recurso_5 = pd.read_excel(url_flujo, engine='openpyxl',sheet_name="ARCHIVO_CARGAR")  # Ensure `openpyxl` is installed
     df_recurso_7 = pd.read_excel(url_rendimiento, engine='openpyxl')  # Ensure `openpyxl` is installed
 
     #df_group_by_numero = df.groupby('numero_contrato')['valor'].sum().reset_index()
@@ -341,7 +342,7 @@ def main():
     consolidado += codificar_formato(tipo_6) + '\n'
     consolidado += codificar_formato(tipo_7)
 
-    file_name = f"reportes/SER124DREC20251130NI000900091143{PROPIEDADES_TIPO_2[0][0]}.txt"
+    file_name = f"reportes/SER124DREC20260331NI000900091143{PROPIEDADES_TIPO_2[0][0]}.txt"
 
     # Guardar el archivo en la misma carpeta
     with open(file_name, 'w', encoding='utf-8') as f:
