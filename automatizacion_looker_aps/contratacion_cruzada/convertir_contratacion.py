@@ -65,29 +65,31 @@ def configurar_driver(ruta_descarga):
 
 def descargar_contratos():
     # 1. Carga de bases
-    contratos_x_resolucion = pd.read_excel("bases/CONTRATOS_1778.xlsx")
-    secop = pd.read_csv("bases/SECOP_II_-_Procesos_de_Contratación_20260312.csv")
+    base_dir = 1397
+    contratos = pd.read_excel("bases/CONTRATOS_TODAS_RES_MAR_2026.xlsx")
+    contratos_x_resolucion = contratos[contratos["1.2"] == base_dir].copy()  # Filtrar por NIT específico
+    secop = pd.read_csv("bases/SECOP_II_-_Procesos_de_Contratación_20260327.csv")
     secop["Referencia del Proceso"] = secop["Referencia del Proceso"].str.strip()
 
-    df_contratos = contratos_x_resolucion.merge(secop, left_on="1.6", right_on="Referencia del Proceso", how="left")
-    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["1.6", "URLProceso"])[['1.6','URLProceso']]
-    df_verificar_manualmente = df_contratos[df_contratos["URLProceso"].isna()].drop_duplicates(["1.6", "URLProceso"])
+    df_contratos = contratos_x_resolucion.merge(secop, left_on="1.7", right_on="Referencia del Proceso", how="left")
+    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["1.7", "URLProceso"])[['1.7','URLProceso']]
+    df_verificar_manualmente = df_contratos[df_contratos["URLProceso"].isna()].drop_duplicates(["1.7", "URLProceso"])
 
     # Ajusta aquí cuántos contratos quieres procesar
-    start_idx = 200
-    end_idx = 308
-    #df_test = df_por_descargar.iloc[start_idx:end_idx]
-    df_test = df_por_descargar
-    #df_test = df_por_descargar[df_por_descargar["1.6"].isin(["199-2024","219-2024","260-2024","262-2025","191-2024","184-2024","186-2024"])]
-    base_dir = "1778"
-    driver = configurar_driver(base_dir)
+    start_idx = 299
+    end_idx = 396
+    df_test = df_por_descargar.iloc[start_idx:end_idx]
+    #df_test = df_por_descargar
+    #df_test = df_por_descargar[df_por_descargar["1.7"].isin(["668-2024","701-2024","704-2024","779-2024","909-2024","910-2024","911-2024","912-2024","913-2024","914-2024","915-2024","916-2024","923-2024","924-2024","925-2024","926-2024","927-2024","928-2024","929-2024","930-2024","931-2024","932-2024","933-2024","935-2024","939-2024","942-2024","946-2024","949-2024","950-2024"])]
+
+    driver = configurar_driver(str(base_dir))
     try:
         for index, fila in df_test.iterrows():
             url_proceso = fila["URLProceso"]
-            num_contrato = str(fila["1.6"]).replace("/", "-").strip()
+            num_contrato = str(fila["1.7"]).replace("/", "-").strip()
 
             # Definir la ruta absoluta para que Chrome/Edge no se confunda
-            ruta_especifica = os.path.abspath(os.path.join(base_dir, num_contrato))
+            ruta_especifica = os.path.abspath(os.path.join(str(base_dir), num_contrato))
             if not os.path.exists(ruta_especifica):
                 os.makedirs(ruta_especifica)
 
@@ -138,7 +140,7 @@ def descargar_contratos():
         # 3. CERRAR EL DRIVER SOLO CUANDO TERMINE TODO EL BUCLE
         print("\n🏁 Proceso terminado. Cerrando navegador...")
         driver.quit()
-        print(f"Buscar manualmente: {fila['1.6']} - {fila['URLProceso']}\n")
+        print(f"Buscar manualmente: {fila['1.7']} - {fila['URLProceso']}\n")
 
 
 def extraer_texto_pdf(ruta_pdf: str, num_pages) -> str:
@@ -224,11 +226,11 @@ def listar_contratos():
     secop = pd.read_csv("bases/SECOP_II_-_Procesos_de_Contratación_20260312.csv")
     secop["Referencia del Proceso"] = secop["Referencia del Proceso"].str.strip()
 
-    df_contratos = contratos_x_resolucion.merge(secop, left_on="1.6", right_on="Referencia del Proceso", how="left")
-    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["1.6", "URLProceso"])[
-        ['1.6', 'URLProceso']]
+    df_contratos = contratos_x_resolucion.merge(secop, left_on="1.7", right_on="Referencia del Proceso", how="left")
+    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["1.7", "URLProceso"])[
+        ['1.7', 'URLProceso']]
 
-    #df_por_descargar = df_por_descargar[df_por_descargar["1.6"].isin(
+    #df_por_descargar = df_por_descargar[df_por_descargar["1.7"].isin(
         #["199-2024", "219-2024", "260-2024", "262-2025", "191-2024", "184-2024", "186-2024"])]
 
     #df_por_descargar = df_por_descargar[0:3]
@@ -236,7 +238,7 @@ def listar_contratos():
     resultados = {"renombrados": [], "sin_match": [], "errores": []}
 
     # necesito extaraslas rutas de cada contrato descargado
-    for contrato in df_por_descargar["1.6"]:
+    for contrato in df_por_descargar["1.7"]:
         ruta_contrato = os.path.join("1778", str(contrato).replace("/", "-"))
         if os.path.exists(ruta_contrato):
 
@@ -442,15 +444,15 @@ def unificar_contratos():
     secop["Referencia del Proceso"] = secop["Referencia del Proceso"].str.strip()
 
     df_contratos = contratos_x_resolucion.merge(
-        secop, left_on="1.6", right_on="Referencia del Proceso", how="left"
+        secop, left_on="1.7", right_on="Referencia del Proceso", how="left"
     )
     df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()]\
-        .drop_duplicates(["1.6", "URLProceso"])[['1.6', 'URLProceso']]
+        .drop_duplicates(["1.7", "URLProceso"])[['1.7', 'URLProceso']]
 
 
     resultados = {"unificados": [], "saltados": [], "errores": []}
 
-    for contrato in df_por_descargar["1.6"]:
+    for contrato in df_por_descargar["1.7"]:
         # Sanitizamos el nombre para que sea válido en Windows
         numero_limpio = str(contrato).replace("/", "-")
         ruta_contrato = os.path.join("1778", numero_limpio)
@@ -573,22 +575,22 @@ def rectificar_contratos():
     secop = pd.read_csv("bases/SECOP_II_-_Procesos_de_Contratación_20260312.csv")
     secop["Referencia del Proceso"] = secop["Referencia del Proceso"].str.strip()
 
-    df_contratos = contratos_x_resolucion.merge(secop, left_on="1.6", right_on="Referencia del Proceso", how="left")
-    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["1.6", "URLProceso"])[
-        ['1.6', 'URLProceso']]
+    df_contratos = contratos_x_resolucion.merge(secop, left_on="1.7", right_on="Referencia del Proceso", how="left")
+    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["1.7", "URLProceso"])[
+        ['1.7', 'URLProceso']]
 
-    df_verificar_manualmente = df_contratos[df_contratos["URLProceso"].isna()].drop_duplicates(["1.6", "URLProceso"])
+    df_verificar_manualmente = df_contratos[df_contratos["URLProceso"].isna()].drop_duplicates(["1.7", "URLProceso"])
 
 
-    for contrato in df_por_descargar["1.6"]:
+    for contrato in df_por_descargar["1.7"]:
         ruta_contrato = os.path.join("1778", str(contrato).replace("/", "-"))
         for archivo in os.listdir(ruta_contrato):
             print(f" {contrato} | {archivo}")
         #if not os.path.exists(ruta_contrato):
             #print(f"Contrato: {contrato} - Ruta: NO DESCARGADO")
 
-    #for contrato in df_verificar_manualmente["1.6"]:
-        #print(f"Contrato: {contrato} - URL: {df_verificar_manualmente[df_verificar_manualmente['1.6'] == contrato]['URLProceso'].values[0]}")
+    #for contrato in df_verificar_manualmente["1.7"]:
+        #print(f"Contrato: {contrato} - URL: {df_verificar_manualmente[df_verificar_manualmente['1.7'] == contrato]['URLProceso'].values[0]}")
 
 
 def listar_certificados():
@@ -604,12 +606,12 @@ def listar_certificados():
     secop["Referencia del Proceso"] = secop["Referencia del Proceso"].str.strip()
 
     df_contratos = contratos_x_resolucion.merge(
-        secop, left_on="1.6", right_on="Referencia del Proceso", how="left"
+        secop, left_on="1.7", right_on="Referencia del Proceso", how="left"
     )
     df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()]\
-        .drop_duplicates(["1.6", "URLProceso"])[['1.6', 'URLProceso']]
+        .drop_duplicates(["1.7", "URLProceso"])[['1.7', 'URLProceso']]
 
-    for contrato in df_por_descargar["1.6"]:
+    for contrato in df_por_descargar["1.7"]:
         ruta_contrato   = os.path.join("1778", str(contrato).replace("/", "-"))
         contrato_limpio = str(contrato).replace("/", "-")
 
@@ -686,7 +688,7 @@ if __name__ == "__main__":
     #listar_certificados()
 
     # Paso 5 Unificar certificados de supervision
-    crear_pdf_maestro_agreesivo(carpeta_base="1778", nombre_maestro="TODOS_LOS_INFORMES_SUPERVICION_1778.pdf", nombre_a_unificar="ACTA_")
+    #crear_pdf_maestro_agreesivo(carpeta_base="1778", nombre_maestro="TODOS_LOS_INFORMES_SUPERVICION_1778.pdf", nombre_a_unificar="ACTA_")
 
 
     #se erncarga de unificar los contratos en un solo PDF por contrato, para facilitar su lectura y análisis posterior ademas de bajar el peso de los archivos.
