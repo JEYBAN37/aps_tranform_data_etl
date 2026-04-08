@@ -299,6 +299,8 @@ def main():
     df_recurso_5 = pd.read_excel(url_flujo, engine='openpyxl',sheet_name="ARCHIVO_CARGAR")  # Ensure `openpyxl` is installed
     df_recurso_7 = pd.read_excel(url_rendimiento, engine='openpyxl')  # Ensure `openpyxl` is installed
 
+    df_recurso_5['orden'] = df_recurso_5['orden'].notna()
+
     #df_group_by_numero = df.groupby('numero_contrato')['valor'].sum().reset_index()
     #df_group_by_numero.to_excel('activos/consolidado_1778_final.xlsx', index=False)
     #df_contratos_presentes_en_caja_2025['diferente'] =  df_contratos_presentes_en_caja_2025['valor'] == df_contratos_presentes_en_caja_2025['valor_pagado']

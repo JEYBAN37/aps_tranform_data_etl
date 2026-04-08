@@ -21,9 +21,9 @@ def main():
     )
     try:
         cursor = connection.cursor(dictionary=True)  # Usar dictionary=True facilita el manejo
-        territorio_name = 'T58'
-        territori_mc = 'Territorio22.1'
-        territori_nm = '22.1'
+        territorio_name = 'T24'
+        territori_mc = 'Territorio 6.7'
+        territori_nm = '6.7'
         # Consulta SQL
         sql = f"""
         SELECT 

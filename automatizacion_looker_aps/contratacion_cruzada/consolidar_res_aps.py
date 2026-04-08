@@ -72,25 +72,26 @@ def listar_contratos_bd():
     contratos_x_resolucion = pd.read_excel("bases/CONTRATOS_TODAS_RES_MAR_2026.xlsx")
     secop = pd.read_csv("bases/SECOP_II_-_Procesos_de_Contratación_20260327.csv")
     secop["Referencia del Proceso"] = secop["Referencia del Proceso"].apply(limpiar_numero_contrato)
-    contratacion_juridica_2024 = pd.read_excel("bases/CONSOLIDADO BASE CONTRATACIÓN.xlsx", sheet_name="2024")
-    contratacion_juridica_2025 = pd.read_excel("bases/CONSOLIDADO BASE CONTRATACIÓN.xlsx", sheet_name="2025")
+    contratacion_juridica_2024 = pd.read_excel("bases/BASE CONTRATACIÓN 2026.xlsx", sheet_name="2024")
+    contratacion_juridica_2025 = pd.read_excel("bases/BASE CONTRATACIÓN 2026.xlsx", sheet_name="2025")
+    contratacion_juridica_2026 = pd.read_excel("bases/BASE CONTRATACIÓN 2026.xlsx", sheet_name="2026")
 
-    contratacion_juridica = pd.concat([contratacion_juridica_2024, contratacion_juridica_2025], ignore_index=True)
+    contratacion_juridica = pd.concat([contratacion_juridica_2024, contratacion_juridica_2025, contratacion_juridica_2026], ignore_index=True)
 
 
-    df_contratos = contratos_x_resolucion.merge(secop, left_on="1.6", right_on="Referencia del Proceso", how="left")
-    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["1.6", "URLProceso"])[['1.6','1.3','1.2','URLProceso','1.11','1.12','1.13','1.7','1.8','1.9','1.10']]
-    df_verificar_manualmente = df_contratos[df_contratos["URLProceso"].isna()].drop_duplicates(["1.6", "URLProceso"])
+    df_contratos = contratos_x_resolucion.merge(secop, left_on="1.7", right_on="Referencia del Proceso", how="left")
+    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["1.7", "URLProceso"])[['1.7','1.3','1.2','URLProceso','1.11','1.12','1.13','1.7','1.8','1.9','1.10']]
+    df_verificar_manualmente = df_contratos[df_contratos["URLProceso"].isna()].drop_duplicates(["1.7", "URLProceso"])
 
-    df_por_cargar =  df_por_descargar.merge(contratacion_juridica, left_on="1.6", right_on="NUMERO", how="left")
+    df_por_cargar =  df_por_descargar.merge(contratacion_juridica, left_on="1.7", right_on="NUMERO", how="left")
     print("Contratos con URL para descargar:")
 
     formato = pd.DataFrame([{
         "nit": row['1.3'],
         "resolucion": row['1.2'],
-        "numero_de_proceso": row['1.6'],
+        "numero_de_proceso": row['1.7'],
         "enlace_secop": row['URLProceso'],
-        "numero_contrato": row['1.6'],
+        "numero_contrato": row['1.7'],
         "numero_cdp": row['No. DE CDP '],
         'numero_rp': row['No. DE R.P'],
         "tipo_identificacion": row['1.11'],
