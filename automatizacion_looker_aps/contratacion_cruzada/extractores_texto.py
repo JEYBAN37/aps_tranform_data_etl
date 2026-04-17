@@ -34,3 +34,18 @@ def extraer_texto_pdf_con_indice(ruta_pdf: str, num_pages=False) -> list[tuple[i
 
     doc.close()
     return paginas  # [(0, "texto pag 1"), (1, "texto pag 2"), ...]
+
+def limpiar_numero_contrato(numero):
+    # Eliminar espacios y caracteres no deseados
+    numero_limpio = str(numero).strip()
+
+    # Reemplazar los espacion en blanco
+    numero_limpio = numero_limpio.replace(" ", "")
+
+    # Aquí puedes agregar más reglas de limpieza si es necesario
+    antes_Del_guion = numero_limpio.split("-")[0]  # Tomar solo la parte antes del guion
+    if numero_limpio[0] == "0" and len(antes_Del_guion) > 3:  # Si el número comienza con "0" y tiene más de un dígito
+        numero_limpio = numero_limpio[1:]
+        return numero_limpio
+
+    return numero_limpio

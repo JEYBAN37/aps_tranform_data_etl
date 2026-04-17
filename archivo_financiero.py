@@ -151,7 +151,6 @@ def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo, recurso):
             'conlusion': '',
         }])
         return formato
-
     # remove fully empty rows (all NaN) and rows where every value is empty/whitespace
     df = df.dropna(how='all').reset_index(drop=True)
     df = df[~df.apply(lambda r: r.astype(str).str.strip().eq('').all(), axis=1)].reset_index(drop=True)
@@ -163,7 +162,7 @@ def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo, recurso):
         'codigo_adminitarativo':'1',
         'numero_contrato': row['numero_contrato'],
         'tipo_contrato': '1',
-        'numero_acta': str(row['valor']).split('.')[0],
+        'numero_acta': str(row['orden']).split('.')[0],
         'fecha_acta': row['fecha'],
         'valor_acta': f"{str(row['valor']).split('.')[0]}.00",
         'valor_pagado':  f"{str(row['valor']).split('.')[0]}.00",
@@ -282,9 +281,9 @@ def main():
     ]
 
     url = 'activos/reporte_ser/RESOLUCION_873_TIPO_3_FEB_2026.xlsx'
-    ur_polisa = 'activos/polisa_1397_actualizacion.xlsx'
+    ur_polisa = 'activos/polisa_873.xlsx'
     url_flujo = 'activos/reporte_ser/RESOLUCION_873_TIPO_5_MAR_2026.xlsx'
-    url_rendimiento = 'activos/rendimientos_1976.xlsx'
+    url_rendimiento = 'activos/rendimientos_873.xlsx'
 
 
     cruzadfas = 'activos/cruzadas.xlsx'
@@ -296,10 +295,10 @@ def main():
 
     df = pd.read_excel(url, engine='openpyxl',sheet_name='CARGAR')  # Ensure `openpyxl` is installed
     df_recurso_4 = pd.read_excel(ur_polisa)  # Ensure `openpyxl` is installed
-    df_recurso_5 = pd.read_excel(url_flujo, engine='openpyxl',sheet_name="ARCHIVO_CARGAR")  # Ensure `openpyxl` is installed
+    df_recurso_5 = pd.read_excel(url_flujo, engine='openpyxl',sheet_name="ARCHIVO_CARGAR_CORRECION")  # Ensure `openpyxl` is installed
     df_recurso_7 = pd.read_excel(url_rendimiento, engine='openpyxl')  # Ensure `openpyxl` is installed
 
-    df_recurso_5['orden'] = df_recurso_5['orden'].notna()
+    df_recurso_5['orden'] = df_recurso_5['orden'].astype(str).str.split('.').str[0]
 
     #df_group_by_numero = df.groupby('numero_contrato')['valor'].sum().reset_index()
     #df_group_by_numero.to_excel('activos/consolidado_1778_final.xlsx', index=False)

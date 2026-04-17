@@ -8,7 +8,7 @@ from mysql_conector import ejecutar_consulta_mysql
 
 
 def main():
-    ruta = "cv/SEG500USIN20260216NI000900091143.txt"
+    ruta = "reportes/SER124DREC20260331NI000900091143ID2087325712.txt"
 
     # Leer líneas
     with open(ruta, "r", encoding="utf-8") as f:
@@ -134,9 +134,9 @@ def convertir_to_json():
 
 
 if __name__ == "__main__":
-    #main()
+    main()
     #cargar_indicadores()
     #unir_csv_falla_coordenadas()
     #unir_csv_falla_familias()
-    convertir_to_json()
+    #convertir_to_json()
 

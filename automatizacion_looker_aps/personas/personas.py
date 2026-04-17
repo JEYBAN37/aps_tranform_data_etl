@@ -94,6 +94,15 @@ def cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
 
     df_personas_consolidados['reporte_fecha'] = FE_REPORTE
 
+
+    asegurador_filtro = (('Emssanar', 'jeyban37@gmail.com'),
+                         ('Nueva EPS','jeyban37@gmail.com'),
+                         ('Sanitas','jeyban37@gmail.com'))
+
+    # poner coluna correo_aseguradora_correspondiente con el correo correspondiente a cada aseguradora a las otras ponles en blanco
+    df_personas_consolidados['correo_aseguradora_correspondiente'] = df_personas_consolidados['aseguradora'].apply(lambda x: dict(asegurador_f or asegurador_f in asegurador_filtro for asegurador_f in asegurador_filtro if asegurador_f[0] == x).get(x, ''))
+
+    df_personas_consolidados['reporte_fecha'] = FE_REPORTE
     if FE_REPORTE:
         df_personas_consolidados.to_csv(
             F'../reportes/{FE_REPORTE}/looker/cosolidado_personas_{FE_REPORTE}.csv')

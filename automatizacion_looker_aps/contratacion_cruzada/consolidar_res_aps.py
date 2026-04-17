@@ -1,40 +1,32 @@
 import pandas as pd
 
-def limpiar_numero_contrato(numero):
-    # Eliminar espacios y caracteres no deseados
-    numero_limpio = str(numero).strip()
+from automatizacion_looker_aps.contratacion_cruzada.extractores_texto import limpiar_numero_contrato
 
-    # Reemplazar los espacion en blanco
-    numero_limpio = numero_limpio.replace(" ", "")
-
-    # Aquí puedes agregar más reglas de limpieza si es necesario
-    antes_Del_guion = numero_limpio.split("-")[0]  # Tomar solo la parte antes del guion
-    if numero_limpio[0] == "0" and len(antes_Del_guion) > 3:  # Si el número comienza con "0" y tiene más de un dígito
-        numero_limpio = numero_limpio[1:]
-        return numero_limpio
-
-    return numero_limpio
 
 def definir_rol(objeto):
     objeto = str(objeto).upper()
     if "MEDICINA" in objeto:
-        return "MEDICO"
+        return "Profesional en medicina"
     elif "AUXILIAR" in objeto:
-        return "AUXILIAR DE ENFERMERIA"
+        return "Auxiliares de enfermería"
     elif "ENFERMERIA" in objeto:
-        return "JEFE DE ENFERMERIA"
+        return "Profesional en enfermería"
     elif "PROMOTOR" in objeto:
-        return "PROMOTOR DE SALUD"
+        return "Agente o gestor comunitario / promotor de salud"
     elif "ODONTOLOGO" in objeto:
-        return "ODONTOLOGO"
+        return "Profesional en  Odontología, Terapias, técnico"
     elif "PSICOLOGIA" in objeto:
-        return "PSOCOLOGO"
+        return "Profesional en psicología"
     elif "NUTRICION" in objeto:
-        return "NUTRICIONISTA"
+        return "Profesional en Nutrición y Dietética"
     elif "TECNOLOGO" in objeto:
         return "TECNOLOGO EN SALUD"
     elif "TERAPEUTA" in objeto:
-        return "FISIOTERAPEUTA"
+        return "Profesional en Terapias"
+    elif "GESTOR" in objeto:
+        return "Agente o gestor comunitario / promotor de salud"
+    elif "TRANSPORTE" in objeto:
+        return "Transporte"
     else:
         return "OTROS"
 
@@ -80,31 +72,32 @@ def listar_contratos_bd():
 
 
     df_contratos = contratos_x_resolucion.merge(secop, left_on="1.7", right_on="Referencia del Proceso", how="left")
-    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["1.7", "URLProceso"])[['1.7','1.3','1.2','URLProceso','1.11','1.12','1.13','1.7','1.8','1.9','1.10']]
+    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["1.7", "URLProceso"])[['1.4','1.3','1.2','URLProceso','1.11','1.12','1.13','1.14','1.7','1.8','1.9','1.10']]
     df_verificar_manualmente = df_contratos[df_contratos["URLProceso"].isna()].drop_duplicates(["1.7", "URLProceso"])
+    contratacion_juridica["NUMERO"] = contratacion_juridica["NUMERO"].apply(limpiar_numero_contrato)
 
     df_por_cargar =  df_por_descargar.merge(contratacion_juridica, left_on="1.7", right_on="NUMERO", how="left")
     print("Contratos con URL para descargar:")
 
     formato = pd.DataFrame([{
-        "nit": row['1.3'],
-        "resolucion": row['1.2'],
+        "nit": row['1.4'],
+        "resolucion": row['1.3'],
         "numero_de_proceso": row['1.7'],
         "enlace_secop": row['URLProceso'],
         "numero_contrato": row['1.7'],
         "numero_cdp": row['No. DE CDP '],
         'numero_rp': row['No. DE R.P'],
-        "tipo_identificacion": row['1.11'],
-        "identificacion_contratista": str(row['1.12']),
-        "nombre_contratista": row['1.13'],
-        "rol_del_contratista" : definir_rol(row['1.9']),
+        "tipo_identificacion": row['1.12'],
+        "identificacion_contratista": str(row['1.13']),
+        "nombre_contratista": row['1.14'],
+        "rol_del_contratista" : definir_rol(row['1.10']),
         "fecha_suscripcion_contrato": formatear_fecha(row['FECHA DE SUSCRIPCION (DD/MM/AAAA)']),
-        "plazo_ejecucion": converti_pazo_meses(row['1.7'], row['1.8']),
-        "fecha_inicio": formatear_fecha(row['1.7']),
-        "fecha_finalizacion": formatear_fecha(row['1.8']),
-        "objeto": row['1.9'],
-        "valor_contrato": row['1.10'],
-        "valor_mensual": valor_mensual(row['1.10'], converti_pazo_meses(row['1.7'], row['1.8']))
+        "plazo_ejecucion": converti_pazo_meses(row['1.8'], row['1.9']),
+        "fecha_inicio": formatear_fecha(row['1.8']),
+        "fecha_finalizacion": formatear_fecha(row['1.9']),
+        "objeto": row['1.10'],
+        "valor_contrato": row['1.11'],
+        "valor_mensual": valor_mensual(row['1.11'], converti_pazo_meses(row['1.8'], row['1.9']))
     } for _, row in df_por_cargar.iterrows()
     ])
 
