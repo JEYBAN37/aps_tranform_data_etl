@@ -14,7 +14,8 @@ import fitz          # PyMuPDF
 from PIL import Image
 import io
 
-from automatizacion_looker_aps.contratacion_cruzada.extractores_texto import extraer_texto_pdf_con_indice
+from automatizacion_looker_aps.contratacion_cruzada.extractores_texto import extraer_texto_pdf_con_indice, \
+    limpiar_numero_contrato
 from automatizacion_looker_aps.contratacion_cruzada.identificadores_coincidencias import contiene_keyword_indice
 
 KEYWORD = [
@@ -65,24 +66,51 @@ def configurar_driver(ruta_descarga):
 
 def descargar_contratos():
     # 1. Carga de bases
-    base_dir = 1397
-    contratos = pd.read_excel("bases/CONTRATOS_TODAS_RES_MAR_2026.xlsx")
-    contratos_x_resolucion = contratos[contratos["1.2"] == base_dir].copy()  # Filtrar por NIT específico
+    base_dir = "873"
+    contratos_x_resolucion = pd.read_excel("bases/CONTRATOS_TODAS_RES_MAR_2026.xlsx")
     secop = pd.read_csv("bases/SECOP_II_-_Procesos_de_Contratación_20260327.csv")
-    secop["Referencia del Proceso"] = secop["Referencia del Proceso"].str.strip()
+    secop["Referencia del Proceso"] = secop["Referencia del Proceso"].apply(limpiar_numero_contrato)
+    contratacion_juridica_2024 = pd.read_excel("bases/BASE CONTRATACIÓN 2026.xlsx", sheet_name="2024")
+    contratacion_juridica_2025 = pd.read_excel("bases/BASE CONTRATACIÓN 2026.xlsx", sheet_name="2025")
+    contratacion_juridica_2026 = pd.read_excel("bases/BASE CONTRATACIÓN 2026.xlsx", sheet_name="2026")
+
+    contratacion_juridica = pd.concat(
+        [contratacion_juridica_2024, contratacion_juridica_2025, contratacion_juridica_2026], ignore_index=True)
 
     df_contratos = contratos_x_resolucion.merge(secop, left_on="1.7", right_on="Referencia del Proceso", how="left")
-    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["1.7", "URLProceso"])[['1.7','URLProceso']]
+    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["1.7", "URLProceso"])[['1.7','URLProceso','1.2']]
     df_verificar_manualmente = df_contratos[df_contratos["URLProceso"].isna()].drop_duplicates(["1.7", "URLProceso"])
 
+    df_por_descargar["1.2"] = df_por_descargar["1.2"].astype(str).str.strip()
+
+    df_por_descargar = df_por_descargar[df_por_descargar["1.2"] == base_dir]
+
     # Ajusta aquí cuántos contratos quieres procesar
-    start_idx = 299
-    end_idx = 396
+    start_idx = 400
+    end_idx = 600
     df_test = df_por_descargar.iloc[start_idx:end_idx]
     #df_test = df_por_descargar
-    #df_test = df_por_descargar[df_por_descargar["1.7"].isin(["668-2024","701-2024","704-2024","779-2024","909-2024","910-2024","911-2024","912-2024","913-2024","914-2024","915-2024","916-2024","923-2024","924-2024","925-2024","926-2024","927-2024","928-2024","929-2024","930-2024","931-2024","932-2024","933-2024","935-2024","939-2024","942-2024","946-2024","949-2024","950-2024"])]
+    #df_test = df_por_descargar[df_por_descargar["1.7"].isin([
+    # Bloque inicial y serie 160
+    # "081-2026", "082-2026", "162-2026", "163-2026", "164-2026",
+    #
+    # # Bloque de la serie 300 (Primera parte)
+    # "325-2026", "326-2026", "327-2026", "328-2026", "329-2026",
+    # "330-2026", "331-2026", "332-2026", "333-2026", "334-2026",
+    # "336-2026", "338-2026", "339-2026", "341-2026", "342-2026",
+    # "343-2026", "345-2026", "346-2026", "347-2026", "348-2026",
+    # "349-2026", "350-2026", "351-2026", "352-2026", "353-2026",
+    # "354-2026", "355-2026", "356-2026", "357-2026", "358-2026",
+    # "359-2026",
+    #
+    # # Bloque de la serie 300 (Segunda parte)
+    # "360-2026", "361-2026", "362-2026", "363-2026", "364-2026",
+    # "365-2026", "366-2026", "367-2026", "368-2026", "369-2026",
+    # #"370-2026", "371-2026", "372-2026", "375-2026", "376-2026",
+    # #"377-2026", "379-2026"
+    # #])]
 
-    driver = configurar_driver(str(base_dir))
+    driver = configurar_driver(base_dir)
     try:
         for index, fila in df_test.iterrows():
             url_proceso = fila["URLProceso"]
