@@ -102,7 +102,7 @@ def listar_contratos_bd():
 
 
     df_contratos = contratos_x_resolucion.merge(secop, left_on="numero_contrato", right_on="Referencia del Proceso", how="left")
-    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["numero_contrato", "URLProceso"])[['resolucion','numero_de_proceso','nit','URLProceso','numero_contrato'
+    df_por_descargar = df_contratos[['resolucion','numero_de_proceso','nit','URLProceso','numero_contrato'
         ,'tipo_identificacion','identificacion_contratista','nombre_contratista','objeto','valor_contrato']]
     df_verificar_manualmente = df_contratos[df_contratos["URLProceso"].isna()].drop_duplicates(["numero_contrato", "URLProceso"])
     contratacion_juridica["NUMERO"] = contratacion_juridica["NUMERO"].apply(limpiar_numero_contrato)
@@ -134,8 +134,41 @@ def listar_contratos_bd():
 
     print(formato.head())
 
-    formato.to_excel("bases/contratos_consolidado_prueba.xlsx", index=False)
+    formato.to_excel("bases/contratos_cargar_reporte.xlsx", index=False)
+
+def calcular_capos_obtenidos():
+    contratos = pd.read_excel("bases/contratos_cargar_reporte.xlsx")
+    pagos_ajustados = pd.read_excel("bases/PAGOS_EBS.xlsx" , sheet_name="REPORTADOS")
+
+    #total = pagos_ajustados["valor"].sum()
+    #total_segun_contratos = contratos['pagado'].sum()
+
+
+    # primero pazar rol a cada perfil
+    df_pagos_con_rol = pagos_ajustados.merge(contratos[["numero_contrato", "rol_del_contratista"]], left_on="numero_contrato", right_on="numero_contrato", how="left")
+
+
+    # agrupar por meses y sumar el valroi mensual segun cada rol
+    df_pagos_con_rol["fecha_pago"] = pd.to_datetime(df_pagos_con_rol["fecha"], errors='coerce')
+    df_pagos_con_rol["mes_pago"] = df_pagos_con_rol["fecha_pago"].dt.to_period('M')
+    df_pagos_con_rol["valor_mensual"] = df_pagos_con_rol["valor"].astype(float)
+    _counts = df_pagos_con_rol.drop_duplicates(subset=['mes_pago', 'numero_contrato']).groupby(
+        ['mes_pago', 'rol_del_contratista'])['numero_contrato'].nunique()
+    df_pagos_con_rol['numero_contratos_pagados'] = df_pagos_con_rol.set_index(
+        ['mes_pago', 'rol_del_contratista']).index.map(_counts).fillna(0).astype(int).values
+
+        # luego agrupar por meses y sumar el valor mensual segun cada rol
+    df_completo = df_pagos_con_rol.groupby(['mes_pago', 'rol_del_contratista']).agg({
+        'valor_mensual': 'sum',
+        'numero_contratos_pagados': 'max'
+    }).reset_index()
+
+
+    print(df_completo.head())
+    suma = df_completo['valor_mensual'].sum()
+    df_completo.to_excel("bases/pagos_ajustados_consolidado.xlsx", index=False)
 
 if __name__ == "__main__":
-    listar_contratos_bd()
+    #listar_contratos_bd()
     #limpiar_numero_contrato("084-2026")
+    calcular_capos_obtenidos()

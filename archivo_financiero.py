@@ -280,7 +280,7 @@ def main():
         ]
     ]
 
-    url = 'activos/reporte_ser/RESOLUCION_873_TIPO_3_FEB_2026.xlsx'
+    url = 'activos/reporte_ser/RESOLUCION_873_TIPO_3_ABRIL_2026.xlsx'
     ur_polisa = 'activos/polisa_873.xlsx'
     url_flujo = 'activos/reporte_ser/RESOLUCION_873_TIPO_5_MAR_2026.xlsx'
     url_rendimiento = 'activos/rendimientos_873.xlsx'

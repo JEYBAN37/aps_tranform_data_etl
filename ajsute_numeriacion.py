@@ -6,7 +6,7 @@ import mysql.connector
 from credenciales import MYSQL_APS, MYSQL_REPLICA_PASSWORD, MYSQL_REPLICA_USER, DATABASE_APS2024
 from mysql_conector import ejecutar_consulta_mysql
 
-
+# 1|NI|900091143|2026-03-01|2026-03-31|260
 def main():
     ruta = "reportes/SER124DREC20260331NI000900091143ID2087325712.txt"
 

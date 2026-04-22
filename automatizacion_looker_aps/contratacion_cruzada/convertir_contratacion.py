@@ -1,4 +1,3 @@
-
 import random
 import time
 from typing import Tuple, Any
@@ -10,7 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.edge.service import Service
 import os
 import re
-import fitz          # PyMuPDF
+import fitz  # PyMuPDF
 from PIL import Image
 import io
 
@@ -25,11 +24,14 @@ KEYWORD = [
     ("ACTA DE ADICIÓN Y PRORROGA", "CONTRATO_TIPO_4_"),
     ("CONTRATO DE PRESTACIÓN DE SERVICIOS No.", "CONTRATO_TIPO_5_"),
     ("CONTRATO DE PRESTACIÓN DE SERVICIOS No_.", "CONTRATO_TIPO_8_"),
-    ("CONTRATO DE PRESTACIÓN DE SERVICIOS","CONTRATO_TIPO_9_"),
+    ("CONTRATO DE PRESTACIÓN DE SERVICIOS", "CONTRATO_TIPO_9_"),
     ("ACTA DE PRÓRROGA", "CONTRATO_TIPO_7_"),
 ]  # Cambia esto por la palabra clave que quieras buscar en los PDFs
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
+BASE_SECOP = "bases/SECOP_II_-_Procesos_de_Contratación_20260327.csv"
+CONTRATOS = "bases/contratos_consolidado_real.xlsx"
+RESOLUCION = "1778"
 
 # --- EL MÉTODO SE PONE AQUÍ (FUERA DEL MAIN) ---
 def configurar_driver(ruta_descarga):
@@ -78,7 +80,8 @@ def descargar_contratos():
         [contratacion_juridica_2024, contratacion_juridica_2025, contratacion_juridica_2026], ignore_index=True)
 
     df_contratos = contratos_x_resolucion.merge(secop, left_on="1.7", right_on="Referencia del Proceso", how="left")
-    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["1.7", "URLProceso"])[['1.7','URLProceso','1.2']]
+    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["1.7", "URLProceso"])[
+        ['1.7', 'URLProceso', '1.2']]
     df_verificar_manualmente = df_contratos[df_contratos["URLProceso"].isna()].drop_duplicates(["1.7", "URLProceso"])
 
     df_por_descargar["1.2"] = df_por_descargar["1.2"].astype(str).str.strip()
@@ -89,8 +92,8 @@ def descargar_contratos():
     start_idx = 400
     end_idx = 600
     df_test = df_por_descargar.iloc[start_idx:end_idx]
-    #df_test = df_por_descargar
-    #df_test = df_por_descargar[df_por_descargar["1.7"].isin([
+    # df_test = df_por_descargar
+    # df_test = df_por_descargar[df_por_descargar["1.7"].isin([
     # Bloque inicial y serie 160
     # "081-2026", "082-2026", "162-2026", "163-2026", "164-2026",
     #
@@ -241,64 +244,99 @@ def renombrar_archivo(ruta_original: str, prefijo: str) -> str:
     Ejemplo: 'doc_001.pdf' → 'CONTRATO_doc_001.pdf'
     Retorna la nueva ruta.
     """
-    carpeta   = os.path.dirname(ruta_original)
+    carpeta = os.path.dirname(ruta_original)
     nuevo_nombre = f"{prefijo}"
-    nueva_ruta   = os.path.join(carpeta, nuevo_nombre)
+    nueva_ruta = os.path.join(carpeta, nuevo_nombre)
 
     os.rename(ruta_original, nueva_ruta)
     return nueva_ruta
 
 
 def listar_contratos():
-    contratos_x_resolucion = pd.read_excel("bases/CONTRATOS_1778.xlsx")
-    secop = pd.read_csv("bases/SECOP_II_-_Procesos_de_Contratación_20260312.csv")
+    contratos_x_resolucion = pd.read_excel(CONTRATOS, sheet_name=RESOLUCION)
+    secop = pd.read_csv(BASE_SECOP)
     secop["Referencia del Proceso"] = secop["Referencia del Proceso"].str.strip()
 
-    df_contratos = contratos_x_resolucion.merge(secop, left_on="1.7", right_on="Referencia del Proceso", how="left")
-    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()].drop_duplicates(["1.7", "URLProceso"])[
-        ['1.7', 'URLProceso']]
+    # df_por_descargar = df_por_descargar[df_por_descargar["1.7"].isin(
+    # ["199-2024", "219-2024", "260-2024", "262-2025", "191-2024", "184-2024", "186-2024"])]
 
-    #df_por_descargar = df_por_descargar[df_por_descargar["1.7"].isin(
-        #["199-2024", "219-2024", "260-2024", "262-2025", "191-2024", "184-2024", "186-2024"])]
-
-    #df_por_descargar = df_por_descargar[0:3]
+    # df_por_descargar = df_por_descargar[0:3]
 
     resultados = {"renombrados": [], "sin_match": [], "errores": []}
 
     # necesito extaraslas rutas de cada contrato descargado
-    for contrato in df_por_descargar["1.7"]:
+
+    for idx, row in contratos_x_resolucion.iterrows():
+        # Obtén valores existentes (ajusta los nombres de columna si es necesario)
+        contrato = row.get("numero_contrato")
+        resolucion = row.get("resolucion")
+        print(f"Contrato: {contrato} - Resolución: {resolucion}")
+        # Ejemplo: agregar/actualizar campo 'procesado' y 'nota'
+
+
+        # contratos_x_resolucion.at[idx, "nota"] = f"Procesado para revisión — {resolucion}"
         ruta_contrato = os.path.join("1778", str(contrato).replace("/", "-"))
-        if os.path.exists(ruta_contrato):
+        contratos_x_resolucion.at[idx, "contrato"] = buscar_en_ruta(ruta_contrato, contrato)
 
-            # lsitar archivos de la carpeta
-            archivos = os.listdir(ruta_contrato)
-            for archivo in archivos:
-                print(f"Procesando: {contrato} - Archivo: {archivo}")
-                try:
-                    texto = extraer_texto_pdf(ruta_contrato + "/" + archivo)
-                    condicion , nombre =  contiene_keyword(texto, KEYWORD)
-                    if condicion:
-                        nueva_ruta = renombrar_archivo(ruta_contrato + "/" + archivo, nombre + contrato + ".pdf")
-                        print(f"  ✅ Renombrado → {os.path.basename(nueva_ruta)}")
-                        resultados["renombrados"].append(nueva_ruta)
-                    else:
-                        print(f"  ⏭️  Sin match, se omite")
-                        resultados["sin_match"].append(ruta_contrato + "/" + archivo)
-
-                except Exception as e:
-                    print(f"  ❌ Error: {e}")
-                    resultados["errores"].append(ruta_contrato + "/" + archivo)
+    contratos_x_resolucion.to_excel("bases/contratos_consolidado_real.xlsx", sheet_name=RESOLUCION, index=False)
 
 
+def buscar_en_ruta(ruta_contrato, contrato):
+    if os.path.exists(ruta_contrato):
+        archivos = os.listdir(ruta_contrato)
+        for archivo in archivos:
+            try:
+                texto = extraer_texto_pdf(ruta_contrato + "/" + archivo, num_pages=False)
+                condicion, nombre = contiene_keyword(texto, KEYWORD)
 
-        else:
-            print(f"Contrato: {contrato} - Ruta: NO DESCARGADO")
+                if condicion:
+                    # nueva_ruta = renombrar_archivo(ruta_contrato + "/" + archivo, nombre + contrato + ".pdf")
+                    print(f"  ✅ Renombrado ")
+                    return True
+                else:
+                    print(f"  ⏭️  Sin match, se omite")
+
+            except Exception as e:
+                print(f"  ❌ Error: {e}")
+        return False
+    else:
+        print(f"Contrato: {contrato} - Ruta: NO DESCARGADO")
+
+    # for contrato in contratos_x_resolucion['numero_contrato']:
+    #     ruta_contrato = os.path.join("1778", str(contrato).replace("/", "-"))
+    #     if os.path.exists(ruta_contrato):
+    #
+    #         # lsitar archivos de la carpeta
+    #         archivos = os.listdir(ruta_contrato)
+    #         for archivo in archivos:
+    #             print(f"Procesando: {contrato} - Archivo: {archivo}")
+    #             try:
+    #                 texto = extraer_texto_pdf(ruta_contrato + "/" + archivo)
+    #                 condicion , nombre =  contiene_keyword(texto, KEYWORD)
+    #                 if condicion:
+    #                     nueva_ruta = renombrar_archivo(ruta_contrato + "/" + archivo, nombre + contrato + ".pdf")
+    #                     print(f"  ✅ Renombrado → {os.path.basename(nueva_ruta)}")
+    #                     resultados["renombrados"].append(nueva_ruta)
+    #                 else:
+    #                     print(f"  ⏭️  Sin match, se omite")
+    #                     resultados["sin_match"].append(ruta_contrato + "/" + archivo)
+    #
+    #             except Exception as e:
+    #                 print(f"  ❌ Error: {e}")
+    #                 resultados["errores"].append(ruta_contrato + "/" + archivo)
+    #
+    #
+    #
+    #     else:
+    #         print(f"Contrato: {contrato} - Ruta: NO DESCARGADO")
 
 
-LIMITE_BYTES   = 2 * 1024 * 1024  # 2MB
-DPI_OBJETIVO   = 150               # balance calidad/peso para docs escaneados
-JPEG_CALIDAD   = 75                # 0-100, 75 es buen balance
-            # 0-100, 75 es buen balance
+LIMITE_BYTES = 2 * 1024 * 1024  # 2MB
+DPI_OBJETIVO = 150  # balance calidad/peso para docs escaneados
+JPEG_CALIDAD = 75  # 0-100, 75 es buen balance
+
+
+# 0-100, 75 es buen balance
 
 def optimizar_pdf(ruta_entrada: str, ruta_salida: str) -> dict:
     """
@@ -315,22 +353,23 @@ def optimizar_pdf(ruta_entrada: str, ruta_salida: str) -> dict:
         ruta_salida,
         garbage=4,
         deflate=True,
-        deflate_images=True,   # ← comprime imágenes con zlib sin pérdida
-        deflate_fonts=True,    # ← comprime fuentes embebidas
+        deflate_images=True,  # ← comprime imágenes con zlib sin pérdida
+        deflate_fonts=True,  # ← comprime fuentes embebidas
         clean=True,
     )
     doc.close()
 
     peso_final = os.path.getsize(ruta_salida)
-    ahorro     = peso_original - peso_final
+    ahorro = peso_original - peso_final
     ahorro_pct = (ahorro / peso_original * 100) if peso_original > 0 else 0
 
     return {
-        "original_mb" : round(peso_original / 1024 / 1024, 2),
-        "final_mb"    : round(peso_final    / 1024 / 1024, 2),
-        "ahorro_pct"  : round(ahorro_pct, 1),
-        "bajo_limite" : peso_final <= LIMITE_BYTES,
+        "original_mb": round(peso_original / 1024 / 1024, 2),
+        "final_mb": round(peso_final / 1024 / 1024, 2),
+        "ahorro_pct": round(ahorro_pct, 1),
+        "bajo_limite": peso_final <= LIMITE_BYTES,
     }
+
 
 PREFIJOS_VALIDOS = (
     "CONTRATO_TIPO_1_",
@@ -343,11 +382,12 @@ PREFIJOS_VALIDOS = (
     "CONTRATO_TIPO_9_",
 )
 
+
 def unificar_pdfs_carpeta(ruta_carpeta: str, numero_contrato: str) -> str | None:
-    nombre_unificado  = f"CONTRATO_UNIFICADO_{numero_contrato}.pdf"
+    nombre_unificado = f"CONTRATO_UNIFICADO_{numero_contrato}.pdf"
     nombre_optimizado = f"CONTRATO_UNIFICADO_{numero_contrato}_FINAL.pdf"
-    ruta_unificado    = os.path.join(ruta_carpeta, nombre_unificado)
-    ruta_optimizado   = os.path.join(ruta_carpeta, nombre_optimizado)
+    ruta_unificado = os.path.join(ruta_carpeta, nombre_unificado)
+    ruta_optimizado = os.path.join(ruta_carpeta, nombre_optimizado)
 
     if os.path.exists(ruta_optimizado):
         print(f"  ⏭️  Ya existe → {nombre_optimizado}")
@@ -357,7 +397,7 @@ def unificar_pdfs_carpeta(ruta_carpeta: str, numero_contrato: str) -> str | None
     archivos_pdf = sorted([
         f for f in os.listdir(ruta_carpeta)
         if f.lower().endswith(".pdf")
-        and f.startswith(PREFIJOS_VALIDOS)  # ← tuple funciona directo con startswith
+           and f.startswith(PREFIJOS_VALIDOS)  # ← tuple funciona directo con startswith
     ])
 
     if not archivos_pdf:
@@ -378,16 +418,17 @@ def unificar_pdfs_carpeta(ruta_carpeta: str, numero_contrato: str) -> str | None
         doc_unificado.close()
 
         # Paso 2 — Optimizar
-        #stats = optimizar_pdf(ruta_unificado, ruta_optimizado)
-        #icono = "✅" if stats["bajo_limite"] else "⚠️"
-        #print(f"  {icono} {stats['original_mb']}MB → {stats['final_mb']}MB "
-              #f"(ahorro {stats['ahorro_pct']}%)")
+        # stats = optimizar_pdf(ruta_unificado, ruta_optimizado)
+        # icono = "✅" if stats["bajo_limite"] else "⚠️"
+        # print(f"  {icono} {stats['original_mb']}MB → {stats['final_mb']}MB "
+        # f"(ahorro {stats['ahorro_pct']}%)")
 
         return ruta_optimizado
 
     except Exception as e:
         print(f"  ❌ Error: {e}")
         return None
+
 
 def extraer_orden(ruta: str) -> tuple:
     """
@@ -398,7 +439,7 @@ def extraer_orden(ruta: str) -> tuple:
     match = re.search(r'(\d+)-(\d{4})', nombre)  # busca NUMERO-AÑO
     if match:
         numero = int(match.group(1))
-        anio   = int(match.group(2))
+        anio = int(match.group(2))
         return (anio, numero)
     return (9999, 9999)  # si no parsea → va al final
 
@@ -435,17 +476,15 @@ def crear_pdf_maestro(carpeta_base: str, nombre_maestro: str = "TODOS_LOS_CONTRA
         doc_maestro = fitz.open()
 
         for ruta_unificado in archivos_unificados:
-            nombre   = os.path.basename(ruta_unificado)
-            carpeta  = os.path.dirname(ruta_unificado)
+            nombre = os.path.basename(ruta_unificado)
+            carpeta = os.path.dirname(ruta_unificado)
             ruta_opt = os.path.join(carpeta, nombre.replace(".pdf", "_opt.pdf"))
 
             print(f"\n  📎 {nombre}")
 
-
             stats = optimizar_pdf(ruta_unificado, ruta_opt)
             print(f"     🗜️  {stats['original_mb']}MB → {stats['final_mb']}MB "
-                      f"(ahorro {stats['ahorro_pct']}%)")
-
+                  f"(ahorro {stats['ahorro_pct']}%)")
 
             with fitz.open(ruta_opt) as doc:
                 doc_maestro.insert_pdf(doc)
@@ -466,21 +505,13 @@ def crear_pdf_maestro(carpeta_base: str, nombre_maestro: str = "TODOS_LOS_CONTRA
         print(f"❌ Error creando maestro: {e}")
         return None
 
+
 def unificar_contratos():
-    contratos_x_resolucion = pd.read_excel("bases/CONTRATOS_1778.xlsx")
-    secop = pd.read_csv("bases/SECOP_II_-_Procesos_de_Contratación_20260312.csv")
-    secop["Referencia del Proceso"] = secop["Referencia del Proceso"].str.strip()
-
-    df_contratos = contratos_x_resolucion.merge(
-        secop, left_on="1.7", right_on="Referencia del Proceso", how="left"
-    )
-    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()]\
-        .drop_duplicates(["1.7", "URLProceso"])[['1.7', 'URLProceso']]
-
+    contratos_x_resolucion = pd.read_excel(CONTRATOS, sheet_name=RESOLUCION)
 
     resultados = {"unificados": [], "saltados": [], "errores": []}
 
-    for contrato in df_por_descargar["1.7"]:
+    for contrato in contratos_x_resolucion["numero_contrato"]:
         # Sanitizamos el nombre para que sea válido en Windows
         numero_limpio = str(contrato).replace("/", "-")
         ruta_contrato = os.path.join("1778", numero_limpio)
@@ -505,8 +536,10 @@ def unificar_contratos():
         print(f"  ⏭️  Saltados  : {len(resultados['saltados'])}")
         print(f"  ❌ Errores   : {len(resultados['errores'])}")
 
-DPI_MAESTRO   = 85   # mínimo legible para documentos escaneados
-JPEG_MAESTRO  = 45   # agresivo pero texto aún legible
+
+DPI_MAESTRO = 85  # mínimo legible para documentos escaneados
+JPEG_MAESTRO = 45  # agresivo pero texto aún legible
+
 
 def optimizar_pdf_agresivo(ruta_entrada: str, ruta_salida: str) -> dict:
     """
@@ -514,16 +547,16 @@ def optimizar_pdf_agresivo(ruta_entrada: str, ruta_salida: str) -> dict:
     Objetivo: reducir ~65% del peso original.
     """
     peso_original = os.path.getsize(ruta_entrada)
-    doc_original  = fitz.open(ruta_entrada)
-    doc_nuevo     = fitz.open()
+    doc_original = fitz.open(ruta_entrada)
+    doc_nuevo = fitz.open()
 
     matriz = fitz.Matrix(DPI_MAESTRO / 72, DPI_MAESTRO / 72)
 
     for num_pagina in range(len(doc_original)):
-        pagina      = doc_original[num_pagina]
-        pixmap      = pagina.get_pixmap(matrix=matriz, alpha=False)
-        jpeg_bytes  = pixmap.tobytes("jpeg", jpg_quality=JPEG_MAESTRO)
-        pixmap      = None
+        pagina = doc_original[num_pagina]
+        pixmap = pagina.get_pixmap(matrix=matriz, alpha=False)
+        jpeg_bytes = pixmap.tobytes("jpeg", jpg_quality=JPEG_MAESTRO)
+        pixmap = None
 
         nueva_pagina = doc_nuevo.new_page(
             width=pagina.rect.width,
@@ -545,25 +578,27 @@ def optimizar_pdf_agresivo(ruta_entrada: str, ruta_salida: str) -> dict:
     ahorro_pct = ((peso_original - peso_final) / peso_original * 100) if peso_original > 0 else 0
 
     return {
-        "original_mb" : round(peso_original / 1024 / 1024, 2),
-        "final_mb"    : round(peso_final    / 1024 / 1024, 2),
-        "ahorro_pct"  : round(ahorro_pct, 1),
+        "original_mb": round(peso_original / 1024 / 1024, 2),
+        "final_mb": round(peso_final / 1024 / 1024, 2),
+        "ahorro_pct": round(ahorro_pct, 1),
     }
 
-def crear_pdf_maestro_agreesivo(carpeta_base: str, nombre_maestro: str = "TODOS_LOS_CONTRATOS_1778.pdf", nombre_a_unificar : str = "CONTRATO_UNIFICADO_") -> str | None:
-    ruta_maestro     = os.path.join(carpeta_base, nombre_maestro)
-    ruta_sin_opt     = os.path.join(carpeta_base, "MAESTRO_SIN_OPTIMIZAR.pdf")
 
+def crear_pdf_maestro_agreesivo(carpeta_base: str, nombre_maestro: str = "TODOS_LOS_CONTRATOS_1778.pdf",
+                                nombre_a_unificar: str = "CONTRATO_UNIFICADO_") -> str | None:
+    ruta_maestro = os.path.join(carpeta_base, nombre_maestro)
+    ruta_sin_opt = os.path.join(carpeta_base, "MAESTRO_SIN_OPTIMIZAR.pdf")
+    df_guia = pd.read_excel(CONTRATOS, sheet_name=RESOLUCION)
     # ── Paso 1: unir todos sin optimizar ────────────────────────
     archivos_unificados = []
-    for subcarpeta in sorted(os.listdir(carpeta_base)):
+    for subcarpeta in df_guia["numero_contrato"].apply(lambda x: str(x).replace("/", "-")):
         ruta_sub = os.path.join(carpeta_base, subcarpeta)
         if not os.path.isdir(ruta_sub):
             continue
         for archivo in os.listdir(ruta_sub):
             if archivo.startswith(nombre_a_unificar) and archivo.endswith(".pdf"):
                 archivos_unificados.append(os.path.join(ruta_sub, archivo))
-                #break
+                # break
 
     if not archivos_unificados:
         print(f"⚠️  No se encontraron archivos {nombre_a_unificar}")
@@ -598,6 +633,7 @@ def crear_pdf_maestro_agreesivo(carpeta_base: str, nombre_maestro: str = "TODOS_
 
     return ruta_maestro
 
+
 def rectificar_contratos():
     contratos_x_resolucion = pd.read_excel("bases/CONTRATOS_1778.xlsx")
     secop = pd.read_csv("bases/SECOP_II_-_Procesos_de_Contratación_20260312.csv")
@@ -609,16 +645,15 @@ def rectificar_contratos():
 
     df_verificar_manualmente = df_contratos[df_contratos["URLProceso"].isna()].drop_duplicates(["1.7", "URLProceso"])
 
-
     for contrato in df_por_descargar["1.7"]:
         ruta_contrato = os.path.join("1778", str(contrato).replace("/", "-"))
         for archivo in os.listdir(ruta_contrato):
             print(f" {contrato} | {archivo}")
-        #if not os.path.exists(ruta_contrato):
-            #print(f"Contrato: {contrato} - Ruta: NO DESCARGADO")
+        # if not os.path.exists(ruta_contrato):
+        # print(f"Contrato: {contrato} - Ruta: NO DESCARGADO")
 
-    #for contrato in df_verificar_manualmente["1.7"]:
-        #print(f"Contrato: {contrato} - URL: {df_verificar_manualmente[df_verificar_manualmente['1.7'] == contrato]['URLProceso'].values[0]}")
+    # for contrato in df_verificar_manualmente["1.7"]:
+    # print(f"Contrato: {contrato} - URL: {df_verificar_manualmente[df_verificar_manualmente['1.7'] == contrato]['URLProceso'].values[0]}")
 
 
 def listar_certificados():
@@ -626,7 +661,7 @@ def listar_certificados():
     KEYWORD = [
         ("CERTIFICADO DE SUPERVICION O INTERVENTORIA", "SUPERVISION_1_"),
         ("CERTIFICADO DE SUPERVISIÓN O INTERVENTORÍA", "SUPERVISION_3_"),
-        ("GTH-CSI 011",                                "SUPERVISION_2_"),
+        ("GTH-CSI 011", "SUPERVISION_2_"),
     ]
 
     contratos_x_resolucion = pd.read_excel("bases/CONTRATOS_1778.xlsx")
@@ -636,11 +671,11 @@ def listar_certificados():
     df_contratos = contratos_x_resolucion.merge(
         secop, left_on="1.7", right_on="Referencia del Proceso", how="left"
     )
-    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()]\
+    df_por_descargar = df_contratos[df_contratos["URLProceso"].notna()] \
         .drop_duplicates(["1.7", "URLProceso"])[['1.7', 'URLProceso']]
 
     for contrato in df_por_descargar["1.7"]:
-        ruta_contrato   = os.path.join("1778", str(contrato).replace("/", "-"))
+        ruta_contrato = os.path.join("1778", str(contrato).replace("/", "-"))
         contrato_limpio = str(contrato).replace("/", "-")
 
         if not os.path.exists(ruta_contrato):
@@ -661,7 +696,7 @@ def listar_certificados():
 
             try:
                 ruta_archivo = os.path.join(ruta_contrato, archivo)
-                paginas      = extraer_texto_pdf_con_indice(ruta_archivo, num_pages=True)
+                paginas = extraer_texto_pdf_con_indice(ruta_archivo, num_pages=True)
                 condicion, prefijo, num_pagina = contiene_keyword_indice(paginas, KEYWORD)
 
                 if condicion:
@@ -696,9 +731,8 @@ def listar_certificados():
     print(f"  ❌ Errores    : {len(resultados['errores'])}")
 
 
-
 if __name__ == "__main__":
-    descargar_contratos()
+    # descargar_contratos()
 
     ## Se encarga de revisar cada contrato descargado, extraer el texto, buscar las keywords y renombrar los archivos
     #listar_contratos()
@@ -710,13 +744,12 @@ if __name__ == "__main__":
     #unificar_contratos()
 
     # Paso 2 — PDF maestro con todos
-    #crear_pdf_maestro_agreesivo(carpeta_base="1778")
+    crear_pdf_maestro_agreesivo(carpeta_base=RESOLUCION)
 
     # Paso 4 Unificar certificado de supervision
-    #listar_certificados()
+    # listar_certificados()
 
     # Paso 5 Unificar certificados de supervision
-    #crear_pdf_maestro_agreesivo(carpeta_base="1778", nombre_maestro="TODOS_LOS_INFORMES_SUPERVICION_1778.pdf", nombre_a_unificar="ACTA_")
+    # crear_pdf_maestro_agreesivo(carpeta_base="1778", nombre_maestro="SER124SREC20260331NI000900091143ID2177823635D03.pdf", nombre_a_unificar="ACTA_")
 
-
-    #se erncarga de unificar los contratos en un solo PDF por contrato, para facilitar su lectura y análisis posterior ademas de bajar el peso de los archivos.
+    # se erncarga de unificar los contratos en un solo PDF por contrato, para facilitar su lectura y análisis posterior ademas de bajar el peso de los archivos.
