@@ -537,7 +537,7 @@ def unificar_contratos():
         print(f"  ❌ Errores   : {len(resultados['errores'])}")
 
 
-DPI_MAESTRO = 85  # mínimo legible para documentos escaneados
+DPI_MAESTRO = 50  # mínimo legible para documentos escaneados
 JPEG_MAESTRO = 45  # agresivo pero texto aún legible
 
 
