@@ -84,6 +84,7 @@ def cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
     df_personas_consolidados['redes'] = df_personas_consolidados['territorio'].map(
         df_distribucion_redes.set_index('TERRITORIO')['RED']
     ).fillna('')
+    
 
     # quiero contar cuantos registros hay por estado
     total_rows = len(df_personas_consolidados)
