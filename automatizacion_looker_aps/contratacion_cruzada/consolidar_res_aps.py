@@ -152,6 +152,7 @@ def calcular_capos_obtenidos():
     df_pagos_con_rol["fecha_pago"] = pd.to_datetime(df_pagos_con_rol["fecha"], errors='coerce')
     df_pagos_con_rol["mes_pago"] = df_pagos_con_rol["fecha_pago"].dt.to_period('M')
     df_pagos_con_rol["valor_mensual"] = df_pagos_con_rol["valor"].astype(float)
+    df_pagos_con_rol = df_pagos_con_rol[df_pagos_con_rol["id_recurso" ] == "ID2087325712"]
     _counts = df_pagos_con_rol.drop_duplicates(subset=['mes_pago', 'numero_contrato']).groupby(
         ['mes_pago', 'rol_del_contratista'])['numero_contrato'].nunique()
     df_pagos_con_rol['numero_contratos_pagados'] = df_pagos_con_rol.set_index(
@@ -166,7 +167,7 @@ def calcular_capos_obtenidos():
 
     print(df_completo.head())
     suma = df_completo['valor_mensual'].sum()
-    df_completo.to_excel("bases/pagos_ajustados_consolidado.xlsx", index=False)
+    df_completo.to_excel("bases/pagos_ajustados_consolidado_873.xlsx", index=False)
 
 if __name__ == "__main__":
     #listar_contratos_bd()

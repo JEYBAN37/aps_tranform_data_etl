@@ -48,6 +48,11 @@ def df_cruce_con_db():
         connection.commit()
 
 
+        df_resolucion_actual = responsables_ebs[responsables_ebs['contrato'] == 'ACTIVO']
+        
+
+
+
         cursor = connection.cursor()
         df_distribucion_redes = extraer_distribucion_redes()
         personas = cargar_personas(cursor, df_distribucion_redes,'','client',DATABASE,"1g6865j3cOGhkj6VAkfIqcJqScB4eWTXUqrZx16Czhuo")
