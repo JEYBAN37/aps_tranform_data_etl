@@ -27,11 +27,64 @@ def procesar_base():
 
     df_hogares_atendidos = df_produccion_filtrada[df_produccion_filtrada['Identificacion'].isin(df_personas['numero'])]
 
+
+
+
+
+    # PRIMERO APLICAR FILTRO NUM PLAN SOLO PARA ENSSANAR PGPCRONICOS ADICIONAL CRONICOS
+
+
+
+
+
+    # SUBSIADIADO CAPUTADO  CAPITA RIAS APLICAR LOS FILTROS ADICIONAL FILTROS SERVICIOS AMBULATORIO PREVENTICON
+
+    PERFILES = [
+        ('JEFE DE ENFERMERIA'),
+        ('AUXILIAR DE ENFERMERIA'),
+        'MEDICINA GENERAL0,'
+        'PSICOLOGIA'
+        'NUTRICION CLINICA',
+        'ODONTOLOGIA',
+        'GINECOLOGIA Y OBSTETRICIA',
+        'MEDICINA INTERNA',
+        'PEDIATRIA'
+    ]
+
+    # campo nombre de servicio
+    SERVICIOS = ["CONSULTA DE CONTROL O SEGUIMIENTO POR ENFERMERA",
+                 "CONSULTA DE CONTROL O SEGUIMINETO POR ENFERMERIA RIAS","CONSULTA POR PRIMERA VEZ POR ENFERMERIA RIAS",
+                 "TAMIZAJE POR RIESGO CARDIOVASCULAR",
+                 "ATENCION VISITA DOMICILIARIA POR ENFERMERIA"]
+
+
+    # FILTRO LA HOJA DE RIAS EDAD
+    # PRIMERA INFANCIA 0.08 - 6 AÑOS
+    # INFANCIA 6 AÑOS 12
+    # ADOLESCENCIA 12 AÑOS 18
+    # JUVENTUD 18 AÑOS 29
+    # ADULTEZ 29 AÑOS 60
+    # VEJEZ 60 X 100PRE
+
+    # RUTA MATERNO SOLO APLICA MUJERES 11 AÑOS 50 SI EL DAINOSTICO EMPIEZZA POR DIAGNOSTICO PRINCIPAL SIEMPRE DEBE SER "Z"
+    # Z321
+    # Z713
+    # Z300
+    # Z391
+    # Z358
+    # Z392
+    # Z392
+
+    # FILTRRAR CRONICOS EN NUM PLAM =  pgp
+
+    # DUPLICADO QUITAR POR CEDULA MISMO NOMBRE DE SERVICIO SI TIENEN EL MISMO
+
     print(f"Hay {len(df_hogares_atendidos)} filas")
     print(f"Hay {len(df_produccion_filtrada)} filas")
 
 def df_cruce_con_db():
     global cursor
+    URL_CONTRATACION_PLANTILLA = "https://docs.google.com/spreadsheets/d/1GpmxqMlDnSnMoDn7scsAw7e76ESW61oRnKL-bgwV6wM/export?format=csv&gid=0"
 
     connection = mysql.connector.connect(
         host=MYSQL_APS,
@@ -43,14 +96,40 @@ def df_cruce_con_db():
 
     try:
 
+        url = "bases_downloads/Informe de Produccion Servicio Plan Unidad (13).xlsx"
+        produccion = pd.read_excel(url)
+        # Luego eliminamos las primeras 2 columnas si no las necesitas
+        df_produccion = produccion.iloc[:, 2:]
+        print(df_produccion.head())
+
         cursor = connection.cursor()
         responsables_ebs = cargar_responsables( cursor, DATABASE)
         connection.commit()
 
+        df_contratacion = pd.read_csv(URL_CONTRATACION_PLANTILLA)
+
+        df_contratacion['identificacion_contratista'] = df_contratacion['identificacion_contratista'].astype(str).str.strip().str.split(".").str[0]
+
+        grupos = df_contratacion.groupby(by=['resolucion'])
+        periodos_contratacion = [grupo for _, grupo in grupos]
+        for resolucion in periodos_contratacion:
+
+            # hacer una fecha inicial y final
+            # con entre la fecha de contratao ams reciente y l afecha de finalizacion mas antigua y segun eso tomar las fechas
+
+            fecha_fin = resolucion['']
+
+            atenciones = produccion
+
+            caracaterizaciones = "verificar varibles de las personas"
+
+
+
+
+
+        df_personal_total = df_contratacion.merge()
 
         df_resolucion_actual = responsables_ebs[responsables_ebs['contrato'] == 'ACTIVO']
-        
-
 
 
         cursor = connection.cursor()
@@ -72,4 +151,4 @@ def df_cruce_con_db():
         connection.close()
 
 if __name__ == "__main__":
-    procesar_base()
+    df_cruce_con_db()
