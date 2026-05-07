@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 
 from automatizacion_looker_aps.personas.personas import cargar_personas
@@ -150,5 +152,36 @@ def df_cruce_con_db():
         cursor.close()
         connection.close()
 
+
+def unir_reportes_facturacion():
+    # una ruta abrir losa rchivo csv o xlsx y unirlos en un solo dataframe
+    ruta = "E:\FACTURACION (1)\FACTURACION"
+    df_principal = pd.DataFrame()
+
+    # mejor concatenación: leer todos los archivos, normalizar columna Identificacion y concatenar
+    dfs = []
+    for archivo in os.listdir(ruta):
+        if archivo.lower().endswith((".csv", ".xlsx", ".xls")):
+            path = os.path.join(ruta, archivo)
+            try:
+                if archivo.lower().endswith(".csv"):
+                    df = pd.read_csv(path, skiprows=2, dtype=str, low_memory=False)
+                else:
+                    df = pd.read_excel(path, skiprows=2, dtype=str)
+            except Exception as e:
+                print(f"Skipping {path}: {e}")
+                continue
+            df = df.iloc[:, 2:]
+            dfs.append(df)
+
+    if not dfs:
+        df_principal = pd.DataFrame()
+    else:
+        df_concat = pd.concat(dfs, ignore_index=True, sort=False)
+        # conservar la primera aparición no nula por Identificacion
+        df_principal = df_concat
+    out_path = os.path.join("bases_downloads", "reporte_unificado_2021_2025.xlsx")
+    df_principal.to_excel(out_path, index=False)
+
 if __name__ == "__main__":
-    df_cruce_con_db()
+    unir_reportes_facturacion()
