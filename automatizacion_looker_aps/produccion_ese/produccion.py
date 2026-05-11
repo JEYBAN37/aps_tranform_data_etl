@@ -98,11 +98,10 @@ def df_cruce_con_db():
 
     try:
 
-        url = "bases_downloads/Informe de Produccion Servicio Plan Unidad (13).xlsx"
-        produccion = pd.read_excel(url)
+        url = "bases_downloads/reporte_unificado_2024_2026.csv"
+        produccion = pd.read_csv(url)
         # Luego eliminamos las primeras 2 columnas si no las necesitas
-        df_produccion = produccion.iloc[:, 2:]
-        print(df_produccion.head())
+        print(produccion.head())
 
         cursor = connection.cursor()
         responsables_ebs = cargar_responsables( cursor, DATABASE)
@@ -111,6 +110,28 @@ def df_cruce_con_db():
         df_contratacion = pd.read_csv(URL_CONTRATACION_PLANTILLA)
 
         df_contratacion['identificacion_contratista'] = df_contratacion['identificacion_contratista'].astype(str).str.strip().str.split(".").str[0]
+
+        produccion['Ident Medico'] = produccion['Ident Medico'].astype(str).str.strip().str.split(".").str[0]
+        produccion['CodPres'] = produccion['CodPres'].astype(str).str.strip().str.split(".").str[0]
+
+        df_produccion_cruzada = produccion[produccion['Ident Medico'].isin(df_contratacion['identificacion_contratista']) | produccion['CodPres'].isin(df_contratacion['identificacion_contratista'])]
+
+
+        df_aps_atenciones = pd.DataFrame([{
+                'identificacion_paciente': row['Identificacion'],
+                'nombre_paciente': row['Nombre Paciente'] | row['Nombre_Paciente'],
+                'fecha_nacimiento': row['Fecha Nac'] | row['FechaNac'],
+                'telefono': row['TelRes'] | row['Telefono'],
+                ''
+                'direccion_paciente': row['DirAfil'] | row['Dir Afil'],
+                'identificacion_medico': row['Ident Medico'] | row['CodPres'],
+                'nombre_medico': row['Nombre'] | row['Nombre Medico'],
+
+            } for _, row in df_produccion_cruzada.iterrows()
+            ])
+
+
+        df_produccion_cruzada = df_produccion_cruzada.drop_duplicates(subset=['Identificacion', 'Ident Medico'], keep='first')
 
         grupos = df_contratacion.groupby(by=['resolucion'])
         periodos_contratacion = [grupo for _, grupo in grupos]
@@ -155,7 +176,7 @@ def df_cruce_con_db():
 
 def unir_reportes_facturacion():
     # una ruta abrir losa rchivo csv o xlsx y unirlos en un solo dataframe
-    ruta = "E:\FACTURACION (1)\FACTURACION"
+    ruta = "E:\FACTURACION (1)\FACTURACION\APS"
     df_principal = pd.DataFrame()
 
     # mejor concatenación: leer todos los archivos, normalizar columna Identificacion y concatenar
@@ -165,7 +186,9 @@ def unir_reportes_facturacion():
             path = os.path.join(ruta, archivo)
             try:
                 if archivo.lower().endswith(".csv"):
-                    df = pd.read_csv(path, skiprows=2, dtype=str, low_memory=False)
+                    df = pd.read_csv(path, skiprows=2, dtype=str,
+                                     on_bad_lines='warn'
+                                     )
                 else:
                     df = pd.read_excel(path, skiprows=2, dtype=str)
             except Exception as e:
@@ -173,6 +196,7 @@ def unir_reportes_facturacion():
                 continue
             df = df.iloc[:, 2:]
             dfs.append(df)
+            print(f"Processed {archivo} with {len(df)} rows.")
 
     if not dfs:
         df_principal = pd.DataFrame()
@@ -180,8 +204,9 @@ def unir_reportes_facturacion():
         df_concat = pd.concat(dfs, ignore_index=True, sort=False)
         # conservar la primera aparición no nula por Identificacion
         df_principal = df_concat
-    out_path = os.path.join("bases_downloads", "reporte_unificado_2021_2025.xlsx")
-    df_principal.to_excel(out_path, index=False)
+    out_path = os.path.join("bases_downloads", "reporte_unificado_2024_2026.csv")
+    df_principal.to_csv(out_path, index=False)
 
 if __name__ == "__main__":
-    unir_reportes_facturacion()
+    #unir_reportes_facturacion()
+    df_cruce_con_db()

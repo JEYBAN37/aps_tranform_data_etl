@@ -3,6 +3,8 @@ from base64 import decode
 import mysql
 import pandas as pd
 import mysql.connector
+from rdflib.tools.csv2rdf import column
+
 from credenciales import MYSQL_APS, MYSQL_REPLICA_PASSWORD, MYSQL_REPLICA_USER, DATABASE_APS2024
 from mysql_conector import ejecutar_consulta_mysql
 
@@ -30,6 +32,33 @@ def main():
     # Guardar en el mismo archivo
     with open(ruta, "w", encoding="utf-8") as f:
         f.writelines(nuevas_lineas)
+
+    print("Columna 2 actualizada correctamente.")
+
+
+def aps_cedular_ya_reportadas():
+    ruta = "E:\APS124CCFP20251208NI000900091143.txt"
+
+    # Leer líneas
+    with open(ruta, "r", encoding="utf-8") as f:
+        lineas = f.readlines()
+
+    nuevas_lineas = []
+    cedulas = []
+    for linea in lineas:
+        partes = linea.strip().split("|")
+
+        # Solo procesamos si hay suficientes columnas (índice 7 -> se necesitan al menos 8 columnas)
+        if len(partes) >= 8:
+            cedulas.append(partes[7])
+        else:
+            cedulas.append(None)
+
+    df_cedulas = pd.DataFrame({'cedula': cedulas})
+
+
+    # Guardar en el mismo archivo
+    df_cedulas.to_csv("reportes/cedulas_reportadas.csv", index=False)
 
     print("Columna 2 actualizada correctamente.")
 
@@ -134,7 +163,8 @@ def convertir_to_json():
 
 
 if __name__ == "__main__":
-    main()
+    #main()
+    aps_cedular_ya_reportadas()
     #cargar_indicadores()
     #unir_csv_falla_coordenadas()
     #unir_csv_falla_familias()
