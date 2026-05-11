@@ -12,7 +12,7 @@ import mysql.connector
 from db_dtypes.pandas_backports import nanall
 
 from credenciales import DRIVER_MYSQL, MYSQL_REPLICA_USER, MYSQL_APS, DRIVER_PATH, MYSQL_REPLICA_PASSWORD, \
-    DATABASE_APS2024
+    DATABASE_APS2024, DATABASE_APS2025
 from export_usuarios_institucionales import codificar_formato
 from mysql_conector import ejecutar_consulta_mysql
 from propiedades_aps124 import DISCAPACIDAD, ANIMALES_PERMITIDO, NIVEL_ESTUDIO, ETNIA, AFILIACION, \
@@ -285,7 +285,44 @@ def convertidor_poblacion_vulnerable(param, poblacion):
     except Exception:
         return 2
 
+def limpiar_formato_microterritorio(param):
+    if pd.isna(param):
+        return ''
+    s = str(param).strip()
+    # Replace all '0' with 'MT' and remove all dots
+    s = s.replace('0', '').replace('.', '')
+    return f"MT0{s}"
+
+def limpiar_estrato(param):
+    try:
+        if pd.isna(param):
+            return '3'
+        param = str(param).strip().split('.')[0]  # Convert to string, strip spaces, and take the part before any decimal point
+        if param.isdigit() and 1 <= int(param) <= 6:
+            return param
+        return '3'
+    except Exception:
+        return '3'
+
 def registro_tipo_2(tipo_registro, propiedades, df_info_general):
+
+    # ajuste de microterritorio y territorio
+    df_info_general['microterritorio'] = df_info_general['microterritorio'].apply(limpiar_formato_microterritorio)
+    df_info_general['nombre_barrio'] = df_info_general['nombre_barrio'].apply(
+        lambda x: re.split(r' T\d', str(x))[0].strip() if x is not None else x
+    )
+
+    df_info_general['estrato'] = df_info_general['estrato'].apply(limpiar_estrato)
+
+    df_info_general['docr'] = df_info_general['docr'].apply(lambda x: str(x).strip().split('.')[0] if pd.notna(x) and str(x).strip() != '' else x)
+
+
+
+    df_info_general = df_info_general[~df_info_general['territorio'].isna()]
+
+    familias_x_territorio_micro = df_info_general.groupby(['territorio']).size().reset_index(name='conteo_familias')
+
+
 
     formato = pd.DataFrame([{
         'id_familia_db': row['id_familia_db'],
@@ -295,94 +332,96 @@ def registro_tipo_2(tipo_registro, propiedades, df_info_general):
         'cod_subregion': propiedades[2],
         'cod_municipio': propiedades[3],
         'cod_territorio': row['territorio'],
-        'cod_microterritorio': row['microterritorio'].replace('0', 'MT', 1),
-        'nombre_territorio': row['nombre_barrio'].split(' T')[0].strip() if ' T' in row['nombre_barrio'] else row['nombre_barrio'],
-        'direccion': limpiar_tildes(row['direccion']),
+        'cod_microterritorio': row['microterritorio'],
+        'nombre_territorio': row['nombre_barrio'].upper(),
+        'direccion': limpiar_tildes(row['direccion']).upper(),
         'longitud':limpiar_formato_longitud(row['longitud']),
         'latitud': limpiar_formato_latitud(row['latitud']),
         'referencia_ubicacion': '',
-        'numero_id_hogar': propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio'].replace('0', 'MT', 1))+ 'EBS' +  f'{1:03}H' + contador_nomenclatura_familia(_),
-        'numero_id_familia': propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio'].replace('0', 'MT', 1)) + 'EBS' +  f'{1:03}H{contador_nomenclatura_familia(_)}F{contador_nomenclatura_familia(_)}',
+        'numero_id_hogar': propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + row['microterritorio']+ 'EBS' +  f'{1:03}H' + contador_nomenclatura_familia(_),
+        'numero_id_familia': propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio']) + 'EBS' +  f'{1:03}H{contador_nomenclatura_familia(_)}F{contador_nomenclatura_familia(_)}',
         'estrato': row['estrato'] if pd.notna(row['estrato']) and str(row['estrato']).isdigit() and 1 <= int(row['estrato']) <= 6 else '0',
         'numero_hogares': row['numerohogares'] if pd.notna(row['numerohogares']) and str(row['numerohogares']).isdigit() and int(row['numerohogares']) > 0 else '1',
         'numero_familias': row['numerohogares'] if pd.notna(row['numerohogares']) and str(row['numerohogares']).isdigit() and int(row['numerohogares']) > 0 else '1',
         'numero_personas': row['numerohabitantes'],
-        #'equpo_basico':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + row['microterritorio'].replace('0', 'MT', 1) + 'EBS' +  f'{_ + 1:03}',
-        'equpo_basico':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio'].replace('0', 'MT', 1)) + 'EBS' +  f'{1:03}',
+        #'equpo_basico':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + row['microterritorio'] + 'EBS' +  f'{_ + 1:03}',
+        'equpo_basico':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio']) + 'EBS' +  f'{1:03}',
         'nit_prestador': propiedades[4],
         'tipo_documento_responsable': convertidor_tipo_cedulas(row['tipodocr']),
         'numero_documento_responsable': safe_str(row.get('docr')),
         'perfil': limpiar_tildes(row['profesion']) if pd.notna(row.get('profesion')) and str(
-            row.get('profesion')).strip() != '' and str(row.get('profesion')).strip().upper() != 'APSE' else 'OTRO',
-        'codigo':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio'].replace('0', 'MT', 1)) + 'EBS' +  f'{1:03}H' +contador_nomenclatura_familia(_) + f'F{contador_nomenclatura_familia(_)}' + contador_nomenclatura_hogar(_),
-        'fecha': pd.to_datetime(row['fecha']).strftime('%Y-%m-%d') if pd.notna(row['fecha']) else '',
-        'tipo_vivienda': convertidor_vivienda(row['vivienda']),
-        'tipo_vivienda_desc':'',
-        'material':convertidor_material(row['pared'],'8'),
-        'material_desc': '',
-        'piso':convertidor_material(row['piso'],'6'),
-        'piso_desc':'',
-        'techo':convertidor_material(row['techo'], '8'),
-        'techo_desc':'',
-        'numero_dormitorios': row['dormitorios'] if pd.notna(row['dormitorios']) and str(row['dormitorios']).isdigit() and int(row['dormitorios']) >= 0 else '0',
-        'hacinamiento':convertidor_material(row['hacinamiento'], '2'),
-        'riesgo_vivienda': convertidor_material(row['riesgo'], '11'),
-        'acceso_vivienda': convertidor_material(row['acceso'], '5'),
-        'combustible': convertidor_material(row['combustible'], '8'),
-        'vector': convertidor_material(row['vector'], '2'),
-        'riesgo_externo' : convertidor_material(row['riesgoexterno'], '19'),
-        'riesgo_externo_desc': '',
-        'actividad_economica': convertidor_material(row['actividad'], '2'),
-        'mascotas': convertir_animales(row['mascotas']),
-        'total_mascotas': contar_animales(convertir_animales(row['mascotas']), row['numeroPerros'], row['numeroGatos']),
-        'numero_mascotas': '',
-        'servicio_agua': convertidor_material(row['aguaservicio'], '13'),
-        'servicio_agua_desc': '',
-        'disposicion_excretas': convertidor_material(row['diposicionexcretas'], '8'),
-        'disposicion_excretas_desc': '',
-        'agua_residuales': convertidor_material(row['aguaresiduales'], '7'),
-        'agua_residuales_desc': '',
-        'recoleccion_basura': convertidor_material(row['basura'], '6'),
-        'recoleccion_basura_desc': '',
-        'tipo_familia': convertidor_material(row['tipofamilia'], '1'),
-        'numero_personas_familia': row['numeropersonas'] if pd.notna(row['numeropersonas']) and str(row['numeropersonas']).isdigit() and int(row['numeropersonas']) > 0 else '1',
-        'resultado_familiograma': convertidor_calculo_familiograma(row['resultadofamiliograma'], '3'),
-        'calculo_apgar': calculo_apgar(row['calculoapgar']),
-        'cuidador': propiedades[5],
-        'calculozarit': calculo_zarit(row['calculozarit']),
-        'codigo_ecomapa': convertidor_material(row['resultadoecomapa'], '1'),
-        'ninos_ninas': convertidor_poblacion_vulnerable(row['poblacionvulnerable'], 'familia con niñas, niños y adolescentes'),
-        'gestantes': convertidor_poblacion_vulnerable(row['poblacionvulnerable'], 'gestantes'),
-        'adultos_mayores': convertidor_poblacion_vulnerable(row['poblacionvulnerable'], 'adultosmayores'),
-        'victimas_conflicto': convertidor_poblacion_vulnerable(row['poblacionvulnerable'], 'victima conflicto'),
-        'poblacion_discapacidad': convertidor_poblacion_vulnerable(row['poblacionvulnerable'], 'discapacidad'),
-        'enfermedad_catastrofica': convertidor_poblacion_vulnerable(row['poblacionvulnerable'], 'personas con enferemedades cronicas'),
-        'enfermedad_trasmisible': '',
-        'covivientes': '2',
-        'familia_vulnerable': convertidor_poblacion_vulnerable(row['poblacionvulnerable'], 'no'),
-        'estilo_vida': convertidor_material(row['estilodevidapredominante'], '2'),
-        'antecedente_enfermedad': convertidor_material(row['antecedenteenfermedad'], '2'),
-        'antecedente_enfermedad_desc': '',
-        'alimentos': row['alimentos'] if pd.notna(row['alimentos']) and row['alimentos'] != '' else '9',
-        'alimentos_desc': '',
-        'estilodevidapredominante': convertidor_material(row['estilodevidapredominante'], '2'),
-        'recursos_potenciadores':'2',
-        'cuidado_entornos': '2',
-        'practicas_relaciones_sanas':calculo_variables_segun_zarit(row['calculozarit']),
-        'redes_colectivas':convertidor_poblacion_vulnerable(row['programasocial'], 'no'),
-        'autonomia_adulto_mayor':'1',
-        'prevencion_higiene': convertidor_poblacion_vulnerable(row['programasocial'], 'si'),
-        'saberes_ancestrales':'2',
-        'derecho_Salud': '1',
-        'id_familia': propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + row['microterritorio'].replace('0', 'MT', 1) + 'EBS' +  f'{1:03}H' + contador_nomenclatura_familia(_) + propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + row['microterritorio'].replace('0', 'MT', 1) + 'EBS' +  f'{1:03}H' + contador_nomenclatura_familia(_) + f'F{contador_nomenclatura_familia(_)}'
+             row.get('profesion')).strip() != '' and str(row.get('profesion')).strip().upper() != 'APSE' else 'OTRO',
+         'codigo':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio']) + 'EBS' +  f'{1:03}H' +contador_nomenclatura_familia(_) + f'F{contador_nomenclatura_familia(_)}' + contador_nomenclatura_hogar(_),
+         'fecha': pd.to_datetime(row['fecha']).strftime('%Y-%m-%d') if pd.notna(row['fecha']) else '',
+         'tipo_vivienda': convertidor_vivienda(row['vivienda']),
+         'tipo_vivienda_desc':'',
+         'material':convertidor_material(row['pared'],'8'),
+        # 'material_desc': '',
+        # 'piso':convertidor_material(row['piso'],'6'),
+        # 'piso_desc':'',
+        # 'techo':convertidor_material(row['techo'], '8'),
+        # 'techo_desc':'',
+        # 'numero_dormitorios': row['dormitorios'] if pd.notna(row['dormitorios']) and str(row['dormitorios']).isdigit() and int(row['dormitorios']) >= 0 else '0',
+        # 'hacinamiento':convertidor_material(row['hacinamiento'], '2'),
+        # 'riesgo_vivienda': convertidor_material(row['riesgo'], '11'),
+        # 'acceso_vivienda': convertidor_material(row['acceso'], '5'),
+        # 'combustible': convertidor_material(row['combustible'], '8'),
+        # 'vector': convertidor_material(row['vector'], '2'),
+        # 'riesgo_externo' : convertidor_material(row['riesgoexterno'], '19'),
+        # 'riesgo_externo_desc': '',
+        # 'actividad_economica': convertidor_material(row['actividad'], '2'),
+        # 'mascotas': convertir_animales(row['mascotas']),
+        # 'total_mascotas': contar_animales(convertir_animales(row['mascotas']), row['numeroPerros'], row['numeroGatos']),
+        # 'numero_mascotas': '',
+        # 'servicio_agua': convertidor_material(row['aguaservicio'], '13'),
+        # 'servicio_agua_desc': '',
+        # 'disposicion_excretas': convertidor_material(row['diposicionexcretas'], '8'),
+        # 'disposicion_excretas_desc': '',
+        # 'agua_residuales': convertidor_material(row['aguaresiduales'], '7'),
+        # 'agua_residuales_desc': '',
+        # 'recoleccion_basura': convertidor_material(row['basura'], '6'),
+        # 'recoleccion_basura_desc': '',
+        # 'tipo_familia': convertidor_material(row['tipofamilia'], '1'),
+        # 'numero_personas_familia': row['numeropersonas'] if pd.notna(row['numeropersonas']) and str(row['numeropersonas']).isdigit() and int(row['numeropersonas']) > 0 else '1',
+        # 'resultado_familiograma': convertidor_calculo_familiograma(row['resultadofamiliograma'], '3'),
+        # 'calculo_apgar': calculo_apgar(row['calculoapgar']),
+        # 'cuidador': propiedades[5],
+        # 'calculozarit': calculo_zarit(row['calculozarit']),
+        # 'codigo_ecomapa': convertidor_material(row['resultadoecomapa'], '1'),
+        # 'ninos_ninas': convertidor_poblacion_vulnerable(row['poblacionvulnerable'], 'familia con niñas, niños y adolescentes'),
+        # 'gestantes': convertidor_poblacion_vulnerable(row['poblacionvulnerable'], 'gestantes'),
+        # 'adultos_mayores': convertidor_poblacion_vulnerable(row['poblacionvulnerable'], 'adultosmayores'),
+        # 'victimas_conflicto': convertidor_poblacion_vulnerable(row['poblacionvulnerable'], 'victima conflicto'),
+        # 'poblacion_discapacidad': convertidor_poblacion_vulnerable(row['poblacionvulnerable'], 'discapacidad'),
+        # 'enfermedad_catastrofica': convertidor_poblacion_vulnerable(row['poblacionvulnerable'], 'personas con enferemedades cronicas'),
+        # 'enfermedad_trasmisible': '',
+        # 'covivientes': '2',
+        # 'familia_vulnerable': convertidor_poblacion_vulnerable(row['poblacionvulnerable'], 'no'),
+        # 'estilo_vida': convertidor_material(row['estilodevidapredominante'], '2'),
+        # 'antecedente_enfermedad': convertidor_material(row['antecedenteenfermedad'], '2'),
+        # 'antecedente_enfermedad_desc': '',
+        # 'alimentos': row['alimentos'] if pd.notna(row['alimentos']) and row['alimentos'] != '' else '9',
+        # 'alimentos_desc': '',
+        # 'estilodevidapredominante': convertidor_material(row['estilodevidapredominante'], '2'),
+        # 'recursos_potenciadores':'2',
+        # 'cuidado_entornos': '2',
+        # 'practicas_relaciones_sanas':calculo_variables_segun_zarit(row['calculozarit']),
+        # 'redes_colectivas':convertidor_poblacion_vulnerable(row['programasocial'], 'no'),
+        # 'autonomia_adulto_mayor':'1',
+        # 'prevencion_higiene': convertidor_poblacion_vulnerable(row['programasocial'], 'si'),
+        # 'saberes_ancestrales':'2',
+        # 'derecho_Salud': '1',
+        #'id_familia': propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + row['microterritorio'] + 'EBS' +  f'{1:03}H' + contador_nomenclatura_familia(_) + propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + row['microterritorio'] + 'EBS' +  f'{1:03}H' + contador_nomenclatura_familia(_) + f'F{contador_nomenclatura_familia(_)}'
     } for _, row in df_info_general.iterrows()
     ])
 
-    #
-    df_responsables_fantasma = formato[formato['numero_documento_responsable'].isin(['', '0', None])]
+
 
     # Filtrar registros con NaN en longitud y latitud
     df_invalidos = formato[formato[['longitud', 'latitud']].isna().any(axis=1)]
+
+    #
+    df_responsables_fantasma = formato[formato['numero_documento_responsable'].isin(['', '0', None])]
 
     # Filtrar registros válidos (sin NaN en longitud y latitud)
     formato = formato.dropna(subset=['longitud', 'latitud'])
@@ -645,90 +684,113 @@ def main():
         host=MYSQL_APS,
         user=MYSQL_REPLICA_USER,
         password=MYSQL_REPLICA_PASSWORD,
-        database=DATABASE_APS2024,
+        database=DATABASE_APS2025,
         autocommit=False  # Disable autocommit
     )
 
     try:
         cursor = connection.cursor()
-        familias_query = ejecutar_consulta_mysql(query_familias(TERRITORIO, MICROTERRITORIO) , cursor)
-
-        if not familias_query:
-            print("No se encontraron familias para el territorio y microterritorio especificados.")
-            return
-
+        # familias_query = ejecutar_consulta_mysql(query_familias(TERRITORIO, MICROTERRITORIO) , cursor)
+        #
+        # if not familias_query:
+        #     print("No se encontraron familias para el territorio y microterritorio especificados.")
+        #
+        #
         FE_REPORTE= datetime.now().strftime('%Y-%m-%d')
+        #
+        # df_familias = pd.DataFrame(familias_query, columns=[
+        #     'id_familia_db',
+        #     'id_sociambiental_db',
+        #     'latitud',
+        #     'longitud',
+        #     'direccion',
+        #     'hacinamiento',
+        #     'territorio',
+        #     'microterritorio',
+        #     'nombre_barrio',
+        #     'estrato',
+        #     'numerohogares',
+        #     'numerohabitantes',
+        #     'hogar',
+        #     'tipodocr',
+        #     'docr',
+        #     'profesion',
+        #     'fecha',
+        #     'vivienda',
+        #     'pared',
+        #     'piso',
+        #     'techo',
+        #     'dormitorios',
+        #     'riesgo',
+        #     'acceso',
+        #     'combustible',
+        #     'vector',
+        #     'riesgoexterno',
+        #     'actividad',
+        #     'mascotas',
+        #     'numeroPerros',
+        #     'numeroGatos',
+        #     'aguaservicio',
+        #     'diposicionexcretas',
+        #     'aguaresiduales',
+        #     'basura',
+        #     'tipofamilia',
+        #     'numeropersonas',
+        #     'resultadofamiliograma',
+        #     'calculoapgar',
+        #     'calculozarit',
+        #     'zaritfuncionalidad',
+        #     'resultadoecomapa',
+        #     'poblacionvulnerable',
+        #     'riesgopsicosocial',
+        #     'estilodevidapredominante',
+        #     'antecedenteenfermedad',
+        #     'saludalternativa',
+        #     'alimentos',
+        #     'programasocial',
+        #     'higiene',
+        #     'total_personas_cursos_vida',
+        #     'estado'
+        # ])
 
-        df_familias = pd.DataFrame(familias_query, columns=[
-            'id_familia_db',
-            'id_sociambiental_db',
-            'latitud',
-            'longitud',
-            'direccion',
-            'hacinamiento',
-            'territorio',
-            'microterritorio',
-            'nombre_barrio',
-            'estrato',
-            'numerohogares',
-            'numerohabitantes',
-            'hogar',
-            'tipodocr',
-            'docr',
-            'profesion',
-            'fecha',
-            'vivienda',
-            'pared',
-            'piso',
-            'techo',
-            'dormitorios',
-            'riesgo',
-            'acceso',
-            'combustible',
-            'vector',
-            'riesgoexterno',
-            'actividad',
-            'mascotas',
-            'numeroPerros',
-            'numeroGatos',
-            'aguaservicio',
-            'diposicionexcretas',
-            'aguaresiduales',
-            'basura',
-            'tipofamilia',
-            'numeropersonas',
-            'resultadofamiliograma',
-            'calculoapgar',
-            'calculozarit',
-            'zaritfuncionalidad',
-            'resultadoecomapa',
-            'poblacionvulnerable',
-            'riesgopsicosocial',
-            'estilodevidapredominante',
-            'antecedenteenfermedad',
-            'antecedenteenfermedad1',
-            'antecedenteenfermedad2',
-            'saludalternativa',
-            'alimentos',
-            'programasocial',
-            'higiene',
-            'total_personas_cursos_vida',
-            'estado'
-        ])
+        df_familias = pd.read_csv('familias_actual.csv')
 
-        # Crear un gráfico de torta para la columna 'hacinamiento'
+        df_familias_sin_integrantes = df_familias[df_familias['total_personas_cursos_vida'] == 0]
+        df_viviendas_sin_familias = df_familias[df_familias['estado'] != 'SOCIOAMBIENTAL_OK']
+
+
         df_familias = df_familias[df_familias['total_personas_cursos_vida'] > 0]
+
+
+
         df_familias = df_familias[df_familias['estado'] == 'SOCIOAMBIENTAL_OK']
         df_familias.loc[:, 'id_familia_db'] = df_familias['id_familia_db'].apply(lambda v: '' if pd.isna(v) else (str(int(float(v))) if re.match(r'^\s*\d+(\.0+)?\s*$', str(v)) else str(v).strip()))
 
 
-        postulados_tipo_2, falla_cordenadas , responsables_malos = registro_tipo_2(TIPO_REGISTROS[1], PROPIEDADES_TIPO_2, df_familias.drop_duplicates(subset=['id_familia_db']))
+        query_personas_adultas = ejecutar_consulta_mysql(traer_joven_adultos(), cursor)
+        df_personas = pd.DataFrame( query_personas_adultas, columns= COLUMNAS_PERSONAS_JOVENADULTO)  # DataFrame vacío para personas, ya que no se usa en este ejemplo
+        df_personas.loc[:, 'familia_id'] = df_personas['familia_id'].apply(lambda v: '' if pd.isna(v) else (str(int(float(v))) if re.match(r'^\s*\d+(\.0+)?\s*$', str(v)) else str(v).strip()))
+
+
+        reportados = pd.read_csv('reportes/cedulas_reportadas.csv', dtype=str, keep_default_na=False)
+
+        no_reportados = df_personas[~df_personas['numerodoc'].isin(reportados['cedula'])]
+
+        # familias reportadas
+        mask_missing = df_familias['longitud'].isna() | df_familias['latitud'].isna()
+        df_familias.loc[mask_missing, 'validacion'] = 'ERROR EN CARACTERIZACION (COORDENADAS INVALIDAS)'
+
+        df_familias = df_familias.dropna(subset=['longitud', 'latitud'])
+
+        df_familias_no_reportadas = df_familias[df_familias['id_familia_db'].isin(no_reportados['familia_id'])]
+
+
+        postulados_tipo_2, falla_cordenadas , responsables_malos = registro_tipo_2(TIPO_REGISTROS[1], PROPIEDADES_TIPO_2,df_familias_no_reportadas )
 
         id_list = postulados_tipo_2['id_familia_db'].tolist()
         id_list_sql = ', '.join(map(str, id_list))  # Convert to a string for SQL
-        query_personas_adultas = ejecutar_consulta_mysql(traer_joven_adultos(id_list_sql), cursor)
-        df_personas = pd.DataFrame( query_personas_adultas, columns= COLUMNAS_PERSONAS_JOVENADULTO)  # DataFrame vacío para personas, ya que no se usa en este ejemplo
-        df_personas.loc[:, 'familia_id'] = df_personas['familia_id'].apply(lambda v: '' if pd.isna(v) else (str(int(float(v))) if re.match(r'^\s*\d+(\.0+)?\s*$', str(v)) else str(v).strip()))
+
+
         df_familias_a_crear = postulados_tipo_2[postulados_tipo_2['id_familia_db'].isin(df_personas['familia_id'])]
         # agregar consecutivo de registro
         df_familias_a_crear.insert(2, 'consecutivo_registro', range(1, len(df_familias_a_crear) + 1))
@@ -777,4 +839,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-    1 | NI | 900091143 | 2025 - 12 - 22 | 2025 - 12 - 22 | 37442
+   # 1 | NI | 900091143 | 2025 - 12 - 22 | 2025 - 12 - 22 | 37442

@@ -184,7 +184,6 @@ COLUMNAS_PERSONAS_JOVENADULTO = [
             'educacion',
             'estudio',
             'regimen',
-            'cursovida',
             'saludalternativa',
             'discapacidad',
             'peso',
@@ -192,13 +191,10 @@ COLUMNAS_PERSONAS_JOVENADULTO = [
             'indicemasacorporal',
             'condicioncronica',
             'canalizacionuno',
-            'canalizaciondos',
-            'canalizaciontres',
             'estadocanalizacion',
             'condicioncronica',
             'ocupacion',
             'etnia',
-            'edad',
             'riesgopsicosocial',
             'sopechamaltrato',
             'familia_id'
@@ -252,71 +248,43 @@ def query_familias (territorio,microterritorio):
          f.riesgopsicosocial,
          f.estilodevidapredominante,
          f.antecedenteenfermedad,
-         f.antecedenteenfermedad1,
-         f.antecedenteenfermedad2,
          f.saludalternativa,
          f.alimentos,
          f.programasocial,
          f.higiene,
     COALESCE(j.total_juventud, 0)
-    + COALESCE(i.total_infantil, 0)
-    + COALESCE(p.total_primera_infancia, 0)
-    + COALESCE(a.total_adolescentes, 0)
     AS total_personas_cursos_vida,
-
     CASE
         WHEN f.sociambiental_id IS NULL THEN 'SIN_SOCIOAMBIENTAL_ID'
         WHEN s.id IS NULL THEN 'SOCIOAMBIENTAL_INVALIDO'
         ELSE 'SOCIOAMBIENTAL_OK'
     END AS estado
 
-    FROM agsolutic_aps2024.familias f
+    FROM agsolutic_alpha_2025.familias f
     
-    LEFT JOIN agsolutic_aps2024.sociambientals s 
+    LEFT JOIN agsolutic_alpha_2025.sociambientals s 
            ON f.sociambiental_id = s.id
     
-    LEFT JOIN agsolutic_aps2024.ubicaciones u 
+    LEFT JOIN agsolutic_alpha_2025.ubicaciones u 
            ON s.ubicacion_id = u.id
     
-    LEFT JOIN agsolutic_aps2024.responsables r 
+    LEFT JOIN agsolutic_alpha_2025.responsables r 
            ON s.responsable_id = r.id
     
-    LEFT JOIN agsolutic_aps2024.observacions o 
+    LEFT JOIN agsolutic_alpha_2025.observacions o 
            ON o.familia_id = f.id
     
     -- 👉 Subconsulta: Juventud adultos por familia
     LEFT JOIN (
         SELECT familia_id, COUNT(*) AS total_juventud
-        FROM agsolutic_aps2024.juventudadultos
+        FROM agsolutic_alpha_2025.juventudadultos
         GROUP BY familia_id
     ) j ON j.familia_id = f.id
-    
-    -- 👉 Subconsulta: Infantiles por familia
-    LEFT JOIN (
-        SELECT familia_id, COUNT(*) AS total_infantil
-        FROM agsolutic_aps2024.infantils
-        GROUP BY familia_id
-    ) i ON i.familia_id = f.id
-    
-    -- 👉 Subconsulta: Primera infancia por familia
-    LEFT JOIN (
-        SELECT familia_id, COUNT(*) AS total_primera_infancia
-        FROM agsolutic_aps2024.primerainfancias
-        GROUP BY familia_id
-    ) p ON p.familia_id = f.id
-    
-    -- 👉 Subconsulta: Adolescencias por familia
-    LEFT JOIN (
-        SELECT familia_id, COUNT(*) AS total_adolescentes
-        FROM agsolutic_aps2024.adolescencias
-        GROUP BY familia_id
-    ) a ON a.familia_id = f.id
-        WHERE u.territorio IN ('T65') AND u.cod_microterritorio IN {microterritorio} AND r.numero != '0'
         ORDER BY s.id
         """
 
 TERRITORIO = 'T65'
-def traer_joven_adultos(id_list_sql):
+def traer_joven_adultos():
     return f""" 
         SELECT 
          j.primernombre,
@@ -332,7 +300,6 @@ def traer_joven_adultos(id_list_sql):
          j.educacion,
          j.niveleducativo,
          j.regimen,
-         j.cursovida,
          j.saludalternativa,
          j.discapacidad,
          j.peso,
@@ -340,134 +307,12 @@ def traer_joven_adultos(id_list_sql):
          j.indicemasacorporal,
          j.condicioncronica,
          j.canalizacionuno,
-         j.canalizaciondos,
-         j.canalizaciontres,
          j.estadocanalizacion,
          j.condicioncronica,
          j.ocupacion,
          j.etnia,
-         j.edad,
          j.riesgopsicosocial,
          j.sopechamaltrato,
          j.familia_id
-        FROM agsolutic_aps2024.familias f
-        LEFT JOIN agsolutic_aps2024.juventudadultos j
-        ON f.id = j.familia_id
-        WHERE f.id IN ({id_list_sql})
-        
-        UNION ALL
-        
-        SELECT 
-         j.primernombre,
-         j.segundonombre,
-         j.primerapellido,
-         j.segundoapellido,
-         j.tipodocumento,
-         j.numerodoc,
-         j.fechanac,
-         j.sexo,
-         '' AS gestacion,
-         j.rol,
-         '' AS educacion,
-         '' AS niveleducativo,
-         j.regimen,
-         '' AS cursovida,
-         '' AS saludalternativa,
-         j.discapacidad,
-         j.peso,
-         j.talla,
-         j.indicemasacorporal,
-         j.condicioncronica,
-         j.canalizacionuno,
-         j.canalizaciondos,
-         j.canalizaciontres,
-         j.estadocanalizacion,
-         j.condicioncronica,
-         '' AS ocupacion,
-         j.etnia,
-         j.edad,
-         '' AS riesgopsicosocial,
-         j.sopechamaltrato,
-         j.familia_id
-        FROM agsolutic_aps2024.familias f
-        LEFT JOIN agsolutic_aps2024.infantils j
-        ON f.id = j.familia_id
-        WHERE f.id IN ({id_list_sql})
-        
-        UNION ALL
-        SELECT 
-         j.primernombre,
-         j.segundonombre,
-         j.primerapellido,
-         j.segundoapellido,
-         j.tipodocumento,
-         j.numerodoc,
-         j.fechanac,
-         j.sexo,
-         '' AS gestacion,
-         j.rol,
-         j.educacion,
-         '' AS niveleducativo,
-         j.regimen,
-         '' AS cursovida,
-         '' AS saludalternativa,
-         j.discapacidad,
-         j.peso,
-         j.talla,
-         '' AS indicemasacorporal,
-         j.condicioncronica,
-         j.canalizacionuno,
-         j.canalizaciondos,
-         j.canalizaciontres,
-         j.estadocanalizacion,
-         '' AS condicioncronica,
-         '' AS ocupacion,
-         j.etnia,
-         j.edad,
-         '' AS riesgopsicosocial,
-         '' AS sopechamaltrato,
-         j.familia_id
-        FROM agsolutic_aps2024.familias f
-        LEFT JOIN agsolutic_aps2024.primerainfancias j
-        ON f.id = j.familia_id
-        WHERE f.id IN ({id_list_sql})
-        
-        UNION ALL
-        
-        SELECT 
-         j.primernombre,
-         j.segundonombre,
-         j.primerapellido,
-         j.segundoapellido,
-         j.tipodocumento,
-         j.numerodoc,
-         j.fechanac,
-         j.sexo,
-         j.gestacion,
-         j.rol,
-         j.educacion,
-         '' AS niveleducativo,
-         j.regimen,
-         j.cursovida,
-         j.saludalternativa,
-         j.discapacidad,
-         j.peso,
-         j.talla,
-         j.indicemasacorporal,
-         j.condicioncronica,
-         j.canalizacionuno,
-         j.canalizaciondos,
-         j.canalizaciontres,
-         j.estadocanalizacion,
-         j.condicioncronica,
-         '' AS ocupacion,
-         j.etnia,
-         j.edad,
-         j.riesgopsicosocial,
-         j.sopechamaltrato,
-         j.familia_id
-        FROM agsolutic_aps2024.familias f
-        LEFT JOIN agsolutic_aps2024.adolescencias j
-        ON f.id = j.familia_id
-        WHERE f.id IN ({id_list_sql})
+        FROM agsolutic_alpha_2025.juventudadultos j
         """
