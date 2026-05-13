@@ -11,3 +11,4 @@ DATABASE = ['agsolutic_alpha_2025',
             #'agsolutic_fichafamiliarsur',
             #'agsolutic_fichafamiliar',
             ]
+URL_CONTRATACION_PLANTILLA = "https://docs.google.com/spreadsheets/d/1GpmxqMlDnSnMoDn7scsAw7e76ESW61oRnKL-bgwV6wM/export?format=csv&gid=0"
