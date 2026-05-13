@@ -12,7 +12,7 @@ import mysql.connector
 from db_dtypes.pandas_backports import nanall
 
 from credenciales import DRIVER_MYSQL, MYSQL_REPLICA_USER, MYSQL_APS, DRIVER_PATH, MYSQL_REPLICA_PASSWORD, \
-    DATABASE_APS2024, DATABASE_APS2025
+    DATABASE_APS2024, DATABASE_APS2025, URL_CONTRATACION_PLANTILLA
 from export_usuarios_institucionales import codificar_formato
 from mysql_conector import ejecutar_consulta_mysql
 from propiedades_aps124 import DISCAPACIDAD, ANIMALES_PERMITIDO, NIVEL_ESTUDIO, ETNIA, AFILIACION, \
@@ -35,7 +35,7 @@ def limpiar_tildes(texto):
     except (ValueError, TypeError, NoneType):
         return 'REVISAR'
 
-def limpiar_formato_longitud(valor):
+def limpiar_formato_longitud(valor, valor_por_defecto=np.nan):
     try:
         valor = str(valor).replace(',', '.')
         valor = valor.replace('-', '')  # Eliminar cualquier signo negativo existente
@@ -43,7 +43,7 @@ def limpiar_formato_longitud(valor):
 
         # Verificar que tenga 6 o más dígitos
         if len(str(valor_float).replace('.', '')) < 6:
-            return np.nan
+            return valor_por_defecto
 
         # Truncar a 10 caracteres si la longitud es 12
         valor_str = str(valor_float)
@@ -55,25 +55,25 @@ def limpiar_formato_longitud(valor):
             # Verificar que tenga más de 6 dígitos después del punto
             partes = str(valor_float).split('.')
             if len(partes) < 2 or len(partes[1]) < 4:
-                return np.nan
+                return valor_por_defecto
 
             # Verificar que el valor antes del punto sea exactamente 77
             if partes[0] != '77':
-                return np.nan
+                return valor_por_defecto
 
             # Agregar un signo negativo a todos los valores
             valor_float = -abs(valor_float)
 
             # Asegurar que tenga máximo 2 números antes del punto
             if len(partes[0].replace('-', '')) > 2:
-                return np.nan
+                return valor_por_defecto
             return str(valor_float)
         else:
-            return np.nan
+            return valor_por_defecto
     except Exception:
-        return np.nan
+        return valor_por_defecto
 
-def limpiar_formato_latitud(valor):
+def limpiar_formato_latitud(valor, valor_por_defecto=np.nan):
     try:
         valor = str(valor).replace(',', '.')
         valor = valor.replace('-', '')  # Eliminar cualquier signo negativo existente
@@ -82,14 +82,14 @@ def limpiar_formato_latitud(valor):
 
         # Verificar que tenga 6 o más dígitos
         if len(str(valor_float).replace('.', '')) < 6:
-            return np.nan
+            return  valor_por_defecto
 
         # Asegurar que esté dentro del rango válido
         if -90 <= valor_float <= 90:
             # Verificar que tenga más de 6 dígitos después del punto
             partes = str(valor_float).split('.')
             if len(partes) < 2 or len(partes[1]) < 5:
-                return np.nan
+                return  valor_por_defecto
 
             # Asegurar que tenga máximo 1 número antes del punto
             if len(partes[0].replace('-', '')) > 1:
@@ -97,9 +97,9 @@ def limpiar_formato_latitud(valor):
                 # recortar maxiomo 7 digitos despues del punto
             return str(float(f"{valor_float:.6f}"))
         else:
-            return np.nan
+            return  valor_por_defecto
     except Exception:
-        return np.nan
+            return  valor_por_defecto
 
 def registro_tipo_1(tipo_registro, propiedades, fecha_inicial,fecha_final, num_total_registros):
     formato = pd.DataFrame([{
@@ -124,9 +124,17 @@ def contador_nomenclatura(_, param, estado={'prev_param': None, 'contador': 0}):
     estado['prev_param'] = param
     return f'{estado["contador"]:04}'
 
-def contador_nomenclatura_familia(_):
-    print(_)
-    return f'{_+1:04}'
+def contador_nomenclatura_familia(_,sociambientales):
+    if sociambientales is None or len(sociambientales) == 0:
+        return f'{1:04}'
+    return f'{1:04}'
+
+def obtener_nuevo_contador(micro_anterior, micro_actual, contador_acumulado):
+    # Si el microterritorio cambió, reiniciamos a 1
+    if micro_actual != micro_anterior:
+        return 1
+    # Si es el mismo, sumamos 1 al que ya traíamos
+    return contador_acumulado + 1
 
 def contador_nomenclatura_hogar(_):
     return f'CF{_+1:03}'
@@ -315,6 +323,7 @@ def registro_tipo_2(tipo_registro, propiedades, df_info_general):
     df_info_general['estrato'] = df_info_general['estrato'].apply(limpiar_estrato)
 
     df_info_general['docr'] = df_info_general['docr'].apply(lambda x: str(x).strip().split('.')[0] if pd.notna(x) and str(x).strip() != '' else x)
+    df_info_general['id_sociambiental_db'] = df_info_general['id_sociambiental_db'].apply(lambda x: str(x).strip().split('.')[0] if pd.notna(x) and str(x).strip() != '' else x)
 
 
 
@@ -322,7 +331,100 @@ def registro_tipo_2(tipo_registro, propiedades, df_info_general):
 
     familias_x_territorio_micro = df_info_general.groupby(['territorio']).size().reset_index(name='conteo_familias')
 
+    df_info_general = df_info_general[~df_info_general['docr'].isna()]
 
+    df_info_general = df_info_general[df_info_general['docr'] != '0']
+
+    df_info_general = df_info_general.sort_values(by=['territorio', 'microterritorio']).reset_index(drop=True)
+
+    df_contratacion = pd.read_csv(URL_CONTRATACION_PLANTILLA)
+    df_contratacion['identificacion_contratista'] = df_contratacion['identificacion_contratista'].apply(
+        lambda x: str(x).strip().split('.')[0] if pd.notna(x) and str(x).strip() != '' else x)
+
+    lista_formato = []
+
+    for i, (idx, row) in enumerate(df_info_general.iterrows()):
+
+        # 1. Identificamos el anterior
+        micro_anterior = df_info_general.iloc[i - 1]['microterritorio'] if i > 0 else row['microterritorio']
+
+        id_sociambiental_anterior =  df_info_general.iloc[i - 1]['id_sociambiental_db'] if i > 0 else row['id_sociambiental_db']
+
+        # 2. Actualizamos el contador acumulado
+        # Si es la primera fila o cambió el microterritorio, vuelve a 1. Si no, suma 1.
+        if i == 0 or row['microterritorio'] != micro_anterior:
+            contador_hogar = 1
+        else:
+            contador_hogar += 1
+
+        if i == 0 or row['id_sociambiental_db'] != id_sociambiental_anterior:
+            contador_familia = 1
+        else:
+            contador_familia += 1
+
+        if i == 0 or i == 999:
+            contador_ficha = 1
+        else:
+            contador_ficha += 1
+
+        # 3. Formateamos el contador para el string (0001, 0002...)
+        contador_str_h = f"{contador_hogar:04}"
+        contador_str_f = f"{contador_familia:04}"
+        contador_str_fi = f"{contador_ficha:03}"
+
+        # Equipo Basico
+        equipo_basico = propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio']) + 'EBS' + f'{1:03}'
+        numero_hogar = f"{equipo_basico}H{contador_str_h}"
+        numero_familia = f"{numero_hogar}F{contador_str_f}"
+        numero_ficha = f"{numero_familia}CF{contador_str_fi}"
+
+        # rol contratista
+
+        contratista = df_contratacion[df_contratacion['identificacion_contratista'] == str(row['docr'])]
+        if contratista.empty:
+            logging.warning(f"No se encontró contratista para el documento {row['docr']}")
+            perfil_contratista = 'OTRO'
+        else:
+            perfil_contratista = limpiar_tildes(contratista['rol_del_contratista'].iloc[0])
+
+
+        datos_fila = {
+            'id_familia_db': row['id_familia_db'],
+            'tipo_registro': tipo_registro,
+            'consentimiento': propiedades[0],
+            'cod_departamento': propiedades[1],
+            'cod_subregion': propiedades[2],
+            'cod_municipio': propiedades[3],
+            'cod_territorio': row['territorio'],
+            'cod_microterritorio': row['microterritorio'],
+            'nombre_territorio': str(row['nombre_barrio']).upper() if pd.notna(row['nombre_barrio']) else '',
+            'direccion': limpiar_tildes(row['direccion']).upper(),
+            'longitud': limpiar_formato_longitud(row['longitud'], valor_por_defecto=-77.281101),
+            'latitud': limpiar_formato_latitud(row['latitud'], valor_por_defecto=1.213601),
+            'referencia_ubicacion': '',
+            'numero_id_hogar': numero_hogar,
+            'numero_id_familia': numero_familia,
+            'estrato': row['estrato'] if pd.notna(row['estrato']) and str(row['estrato']).isdigit() and 1 <= int(
+                row['estrato']) <= 6 else '0',
+            'numero_hogares': row['numerohogares'] if pd.notna(row['numerohogares']) and str(
+                row['numerohogares']).isdigit() and int(row['numerohogares']) > 0 else '1',
+            'numero_familias': row['numerohogares'] if pd.notna(row['numerohogares']) and str(
+                row['numerohogares']).isdigit() and int(row['numerohogares']) > 0 else '1',
+            'numero_personas': str(row['numerohabitantes']).split('.')[0],
+            'equpo_basico': equipo_basico,
+            'nit_prestador': propiedades[4],
+            'tipo_documento_responsable': convertidor_tipo_cedulas(row['tipodocr']),
+            'numero_documento_responsable': safe_str(row.get('docr')),
+            'perfil': perfil_contratista,
+            'codigo': numero_ficha,
+            'fecha': pd.to_datetime(row['fecha']).strftime('%Y-%m-%d') if pd.notna(row['fecha']) else '',
+            'tipo_vivienda': convertidor_vivienda(row['vivienda']),
+            'tipo_vivienda_desc': '',
+            'material': convertidor_material(row['pared'], '8'),
+        }
+        lista_formato.append(datos_fila)
+
+    formato = pd.DataFrame(lista_formato)
 
     formato = pd.DataFrame([{
         'id_familia_db': row['id_familia_db'],
@@ -335,10 +437,18 @@ def registro_tipo_2(tipo_registro, propiedades, df_info_general):
         'cod_microterritorio': row['microterritorio'],
         'nombre_territorio': row['nombre_barrio'].upper(),
         'direccion': limpiar_tildes(row['direccion']).upper(),
-        'longitud':limpiar_formato_longitud(row['longitud']),
-        'latitud': limpiar_formato_latitud(row['latitud']),
+        'longitud':limpiar_formato_longitud(row['longitud'], valor_por_defecto=-77.281101),
+        'latitud': limpiar_formato_latitud(row['latitud'], valor_por_defecto=1.213601),
         'referencia_ubicacion': '',
-        'numero_id_hogar': propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + row['microterritorio']+ 'EBS' +  f'{1:03}H' + contador_nomenclatura_familia(_),
+        'numero_id_hogar': (
+                propiedades[1] + propiedades[2] + propiedades[3] +
+                row['territorio'] + row['microterritorio'] + 'EBS' + f'{1:03}H' +
+                contador_nomenclatura_familia(
+                    _,
+                    df_info_general.iloc[_ - 1]['microterritorio'] if _ > 0 else row['microterritorio'],
+                    row['microterritorio']
+                )
+        ),
         'numero_id_familia': propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio']) + 'EBS' +  f'{1:03}H{contador_nomenclatura_familia(_)}F{contador_nomenclatura_familia(_)}',
         'estrato': row['estrato'] if pd.notna(row['estrato']) and str(row['estrato']).isdigit() and 1 <= int(row['estrato']) <= 6 else '0',
         'numero_hogares': row['numerohogares'] if pd.notna(row['numerohogares']) and str(row['numerohogares']).isdigit() and int(row['numerohogares']) > 0 else '1',
@@ -351,7 +461,7 @@ def registro_tipo_2(tipo_registro, propiedades, df_info_general):
         'numero_documento_responsable': safe_str(row.get('docr')),
         'perfil': limpiar_tildes(row['profesion']) if pd.notna(row.get('profesion')) and str(
              row.get('profesion')).strip() != '' and str(row.get('profesion')).strip().upper() != 'APSE' else 'OTRO',
-         'codigo':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio']) + 'EBS' +  f'{1:03}H' +contador_nomenclatura_familia(_) + f'F{contador_nomenclatura_familia(_)}' + contador_nomenclatura_hogar(_),
+         #'codigo':propiedades[1] + propiedades[2] + propiedades[3] + row['territorio'] + str(row['microterritorio']) + 'EBS' +  f'{1:03}H' +contador_nomenclatura_familia(_) + f'F{contador_nomenclatura_familia(_)}' + contador_nomenclatura_hogar(_),
          'fecha': pd.to_datetime(row['fecha']).strftime('%Y-%m-%d') if pd.notna(row['fecha']) else '',
          'tipo_vivienda': convertidor_vivienda(row['vivienda']),
          'tipo_vivienda_desc':'',

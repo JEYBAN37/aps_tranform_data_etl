@@ -5,7 +5,7 @@ import pandas as pd
 from automatizacion_looker_aps.personas.personas import cargar_personas
 from automatizacion_looker_aps.responsables.responsable import cargar_responsables
 from credenciales import MYSQL_APS, MYSQL_REPLICA_USER, MYSQL_REPLICA_PASSWORD, DATABASE, \
-    DATABASE_APS2025
+    DATABASE_APS2025, URL_CONTRATACION_PLANTILLA
 import mysql.connector
 
 from limpieza_datos import extraer_distribucion_redes
@@ -86,7 +86,7 @@ def procesar_base():
 
 def df_cruce_con_db():
     global cursor
-    URL_CONTRATACION_PLANTILLA = "https://docs.google.com/spreadsheets/d/1GpmxqMlDnSnMoDn7scsAw7e76ESW61oRnKL-bgwV6wM/export?format=csv&gid=0"
+
 
     connection = mysql.connector.connect(
         host=MYSQL_APS,
