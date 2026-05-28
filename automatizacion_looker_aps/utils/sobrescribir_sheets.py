@@ -9,6 +9,7 @@ def sobrescribir_hoja(sheet_id, sheet_name, df, client):
     df = df.copy()
     sheet = client.open_by_key(sheet_id).worksheet(sheet_name)
     sheet.clear()
+    sheet.resize(rows=100000, cols=26)
 
     # 2. Helper ultra-robusto para convertir celdas a strings
     def _cell_to_string(x):
@@ -37,7 +38,7 @@ def sobrescribir_hoja(sheet_id, sheet_name, df, client):
     all_data = [headers] + rows
 
     # 4. Carga por bloques (Chunks) para evitar el Error 500 de Google
-    chunk_size = 5000  # Ajusta a 2000 si tienes muchísimas columnas
+    chunk_size = 2000  # Ajusta a 2000 si tienes muchísimas columnas
     start_row = 1
 
     print(f"Subiendo {len(all_data)} filas a la hoja '{sheet_name}'...")

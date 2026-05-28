@@ -72,7 +72,13 @@ def query_familia(database):
         f.riesgopsicosocial,
         f.estilodevidapredominante,
         f.cepilladodientes,
-        f.higiene
+        f.higiene,
+        o.menoresriegosalud,
+        o.riesgovulnerabilidad,
+        o.valoracionfamilia,
+        o.fortalezas,
+        o.entornoafectado,
+        o.indicadorria
 
     FROM {database}.familias f
 

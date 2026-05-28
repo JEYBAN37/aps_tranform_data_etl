@@ -2,6 +2,7 @@ import pandas as pd
 
 from automatizacion_looker_aps.query.query_persona import query_persona
 from automatizacion_looker_aps.utils.cargar_big_query import cargar_csv_a_bigquery, limpiar_formatos
+from automatizacion_looker_aps.utils.limpiar_canalizaciones import limpiar_y_extraer
 from automatizacion_looker_aps.utils.sobrescribir_sheets import sobrescribir_hoja
 from mysql_conector import ejecutar_consulta_mysql
 
@@ -89,7 +90,9 @@ def cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
     # quiero contar cuantos registros hay por estado
     total_rows = len(df_personas_consolidados)
 
-
+    df_personas_consolidados['canalizacion_1'] = df_personas_consolidados['canalizacionuno'].apply(lambda x: limpiar_y_extraer(x, 0))
+    df_personas_consolidados['canalizacion_2'] = df_personas_consolidados['canalizacionuno'].apply(lambda x: limpiar_y_extraer(x, 1))
+    df_personas_consolidados['canalizacion_3'] = df_personas_consolidados['canalizacionuno'].apply(lambda x: limpiar_y_extraer(x, 2))
 
     #df_personas_consolidados.to_csv(F'../crucez/base_actualizada/cosolidado_personas_{FE_REPORTE}.csv', index=False)
 

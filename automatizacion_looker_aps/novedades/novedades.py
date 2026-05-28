@@ -3,6 +3,7 @@ import pandas as pd
 from automatizacion_looker_aps.query.query_novedades import query_novedades
 from automatizacion_looker_aps.utils.cargar_big_query import cargar_csv_a_bigquery, limpiar_formatos
 from automatizacion_looker_aps.utils.sobrescribir_sheets import sobrescribir_hoja
+from export_aps_124 import limpiar_formato_latitud, limpiar_formato_longitud
 from mysql_conector import ejecutar_consulta_mysql
 
 
@@ -17,9 +18,12 @@ def cargar_novedades(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id
 
     df_novedades_consolidado = pd.DataFrame(acumulado_novedades)
     df_novedades_consolidado.columns = [desc[0] for desc in cursor.description]
+    df_novedades_consolidado['longitud'] = df_novedades_consolidado['longitud'].apply(limpiar_formato_longitud)
+    df_novedades_consolidado['latitud'] = df_novedades_consolidado['latitud'].apply(limpiar_formato_latitud)
 
     for i, col in enumerate(df_novedades_consolidado.columns):
-        if df_novedades_consolidado.dtypes.iloc[i] == object:
+        if df_novedades_consolidado.dtypes.iloc[i] == object and col not in (
+                'longitud', 'latitud'):
             df_novedades_consolidado.iloc[:, i] = df_novedades_consolidado.iloc[:, i].astype(
                 str).str.strip().str.replace(r'[^\w\s]', '', regex=True)
 
@@ -27,9 +31,15 @@ def cargar_novedades(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id
                                                        errors='coerce').dt.strftime('%Y-%m-%d').fillna('').astype(
         str)
 
+    df_novedades_consolidado['validacion'] = ''
+    mask_missing = df_novedades_consolidado['longitud'].isna() | df_novedades_consolidado['latitud'].isna()
+    df_novedades_consolidado.loc[mask_missing, 'validacion'] = 'ERROR EN CARACTERIZACION (COORDENADAS INVALIDAS)'
+
     df_novedades_consolidado['redes'] = df_novedades_consolidado['territorio'].map(
         df_distribucion_redes.set_index('TERRITORIO')['RED']
     ).fillna('')
+
+
 
     #df_novedades_consolidado.to_csv(
         #F'../reportes/{FE_REPORTE}/looker/cosolidado_novedades_{FE_REPORTE}.csv')
