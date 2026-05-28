@@ -30,9 +30,29 @@ def cargar_familias(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
     df_familias_consolidados['longitud'] = df_familias_consolidados['longitud'].apply(limpiar_formato_longitud)
     df_familias_consolidados['latitud'] = df_familias_consolidados['latitud'].apply(limpiar_formato_latitud)
 
+    df_familias_consolidados['menoresriegosalud'] = df_familias_consolidados['menoresriegosalud'].apply(
+        lambda x: x.replace(',', '$') if isinstance(x, str) else x
+    ).fillna(0)
+
+    df_familias_consolidados['riesgovulnerabilidad'] = df_familias_consolidados['riesgovulnerabilidad'].apply(
+        lambda x: x.replace(',', '$') if isinstance(x, str) else x
+    ).fillna(0)
+
+    df_familias_consolidados['fortalezas'] = df_familias_consolidados['fortalezas'].apply(
+        lambda x: x.replace(',', '$') if isinstance(x, str) else x
+    ).fillna(0)
+
+    df_familias_consolidados['entornoafectado'] = df_familias_consolidados['entornoafectado'].apply(
+        lambda x: x.replace(',', '$') if isinstance(x, str) else x
+    ).fillna(0)
+
+    df_familias_consolidados['indicadorria'] = df_familias_consolidados['indicadorria'].apply(
+        lambda x: x.replace(',', '$') if isinstance(x, str) else x
+    ).fillna(0)
+
     for i, col in enumerate(df_familias_consolidados.columns):
         if df_familias_consolidados.dtypes.iloc[i] == object and col not in (
-                'longitud', 'latitud', 'familiograma', 'plancuidado','involucrado_plan_cuidado'):
+                'longitud', 'latitud', 'familiograma', 'plancuidado','involucrado_plan_cuidado', 'menoresriegosalud', 'riesgovulnerabilidad', 'fortalezas','actividaddesarrollar'):
             df_familias_consolidados.iloc[:, i] = df_familias_consolidados.iloc[:, i].astype(
                 str).str.strip().str.replace(r'[^\w\s]', '', regex=True)
 
@@ -76,10 +96,16 @@ def cargar_familias(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
 
     df_familias_consolidados = limpiar_formatos( df_familias_consolidados, columnas_fecha=['fecha', 'reporte_fecha'])
 
+    df_situaciones_prioritarias = df_familias_consolidados[['familia_id','sociambiental_id','actividaddesarrollar','involucrado_plan_cuidado']]
+
+    # elimianr alguans columans
+    df_familias_consolidados.drop(columns=['actividaddesarrollar'], inplace=True)
+
     cargar_csv_a_bigquery(df_familias_consolidados, table_id="datos_aps.familias", project_id="aps-project-478903",
                           )
 
+
     sobrescribir_hoja(sheet_id, "cosolidado_familias", df_familias_consolidados,client)
 
-    return df_familias_consolidados
+    return df_familias_consolidados , df_situaciones_prioritarias
 

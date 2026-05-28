@@ -21,9 +21,9 @@ def main():
     )
     try:
         cursor = connection.cursor(dictionary=True)  # Usar dictionary=True facilita el manejo
-        territorio_name = 'T55'
-        territori_mc = 'Territorio19.1'
-        territori_nm = '19.1'
+        territorio_name = 'T07'
+        territori_mc = 'Territorio 3.1'
+        territori_nm = '3.1'
         # Consulta SQL
         sql = f"""
         SELECT 
@@ -32,7 +32,8 @@ def main():
             s.latitud,
             s.longitud,
             f.apellidos,
-            f.celular
+            f.celular,
+            f.id
         FROM {DATABASE_APS2025}.familias f
         LEFT JOIN {DATABASE_APS2025}.sociambientals s ON s.id = f.sociambiental_id
         LEFT JOIN {DATABASE_APS2025}.ubicaciones u ON u.id = s.ubicacion_id
@@ -143,7 +144,7 @@ def main():
                 print(fila)
                 popup_html = (
                     f"Micro: {fila['microterritorio']}<br>"
-                    f"Familia: {fila['apellidos']}<br>"
+                    f"Familia: {fila['id']}<br>"
                     f"Tel: <a href=\"{tel_url}\">{fila.get('celular', '')}</a><br>"
                     f"<a href=\"{street_url}\" target=\"_blank\" rel=\"noopener noreferrer\">Open Street View</a>"
                 )

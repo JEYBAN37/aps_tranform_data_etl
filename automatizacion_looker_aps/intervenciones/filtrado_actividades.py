@@ -19,6 +19,56 @@ def limpiar_id (df, column_name):
     return df
 
 
+def filtrar_planes_cuidado_creado(df_actividades_consolidados, filtrar_por_tipo='PLAN DE CUIDADO CREADO'):
+    df_planes_sin_filtrar = df_actividades_consolidados[
+        df_actividades_consolidados['conteo_plan_cuidado'] == filtrar_por_tipo]
+
+
+    df_planes_sin_filtrar = df_planes_sin_filtrar.sort_values(
+        by=['fecha', 'id_familia_plan'],
+        ascending=[True, True]
+    )
+
+    df_planes_sin_filtrar.drop_duplicates(subset=['fecha', 'id_familia_plan'], keep='first', inplace=True)
+
+
+    # 2. Ahora que está ordenado, eliminamos los duplicados manteniendo el primero (keep='first')
+    df_planes_sin_filtrar = (
+        df_planes_sin_filtrar.loc[
+            df_planes_sin_filtrar.groupby('id_familia_plan')['fecha'].idxmin()
+        ].reset_index(drop=True)
+    )
+
+    return df_planes_sin_filtrar
+
+def filtrar_planes_cuidado_verificar_firma(
+    df_actividades_consolidados,
+    df_planes_firmados,
+    filtrar_por_tipo='PLAN DE CUIDADO CREADO',
+
+):
+    df_planes = df_actividades_consolidados[
+        df_actividades_consolidados['conteo_plan_cuidado'] == filtrar_por_tipo
+    ].copy()
+
+    df_planes = df_planes.sort_values(
+        by=['id_familia_plan', 'fecha', 'responsable_id'],
+        ascending=[True, True, True]
+    )
+
+    # If we are filtering CREATED plans and a dataframe of SIGNED plans is provided,
+    # keep only created rows that have a matching signed plan with the same responsable_id.
+
+    df_signed_keys = df_planes_firmados[['id_familia_plan', 'responsable_id']].drop_duplicates()
+    df_planes = df_planes.merge(df_signed_keys, on=['id_familia_plan', 'responsable_id'], how='inner')
+
+    # drop duplicates keeping the first occurrence
+    df_planes = df_planes.drop_duplicates(subset=['fecha', 'id_familia_plan', 'responsable_id'], keep='first').reset_index(drop=True)
+    df_planes = df_planes.drop_duplicates(subset=['id_familia_plan', 'responsable_id','conteo_plan_cuidado'], keep='first').reset_index(drop=True)
+
+    return df_planes
+
+
 def filtro_actividades(cursor,df_familia, db, df_personas,reporte,client,sheet_id,responsables_ebs):
 
     acumulado_actividades = []
@@ -67,34 +117,53 @@ def filtro_actividades(cursor,df_familia, db, df_personas,reporte,client,sheet_i
         lambda row: verificar_plan_cuidado(row, df_familia), axis=1
     )
 
+
     df_actividades_consolidados['id_familia_plan'] = df_actividades_consolidados.apply(
         lambda row: row['conteo_plan_cuidado'].split('|')[-1].strip() if row['conteo_plan_cuidado'] != '0' else '0', axis=1
     )
+    familia_A_Comparar = df_actividades_consolidados[df_actividades_consolidados['id_familia_plan'] == '79769']
 
     df_actividades_consolidados['conteo_plan_cuidado'] = df_actividades_consolidados['conteo_plan_cuidado'].apply(lambda x: x.split('|')[0].strip() if x != '0' else '0')
 
+    familia_A_Comparar = df_actividades_consolidados[df_actividades_consolidados['id_familia_plan'] == '79769']
+
+
     colums = ['responsable_id', 'fecha','observacion_id','familia_id','sociambiental_id','juventudadultos_id','responsable_nombre','responsable_profesion', 'conteo_nuevas_caracterizaciones', 'conteo_actualizaciones_ficha','conteo_plan_cuidado','id_familia_plan']
+
+    # colums = ['responsable_id', 'fecha','observacion_id','familia_id','sociambiental_id','juventudadultos_id','responsable_nombre','responsable_profesion','conteo_plan_cuidado','id_familia_plan']
 
     df_actividades_consolidados = (
         df_actividades_consolidados
         .groupby(colums)
         .size()
         .reset_index(name='count')
-        .sort_values(['responsable_id', 'fecha'], ascending=[True, False]))
+        .sort_values(['responsable_id', 'fecha'], ascending=[True, True]))
 
 
-    df_actividades_consolidados = df_actividades_consolidados.sort_values(['responsable_id', 'fecha'],
-                                                                          ascending=[True, True])
+    df_actividades_consolidados = df_actividades_consolidados.sort_values(['fecha', 'responsable_id'], ascending=[True, True])
 
-    df_actividades_consolidados = df_actividades_consolidados.drop_duplicates(
-        subset=['responsable_id', 'observacion_id', 'conteo_plan_cuidado'],
-        keep='first'
-    ).reset_index(drop=True)
 
-    print(f"Caracterizaciones Nuevas {df_actividades_consolidados['conteo_nuevas_caracterizaciones']}")
-    print(f"Total de actividades encontradas: {len(df_actividades_consolidados)}")
+    # df_actividades_consolidados = df_actividades_consolidados.drop_duplicates(
+    #     subset=['responsable_id', 'observacion_id', 'conteo_plan_cuidado'],
+    #     keep='first'
+    # ).reset_index(drop=True)
+
+    #df_actividades_consolidados = df_actividades_consolidados[df_actividades_consolidados['responsable_id'].isin(['85','74','1465','1580','182','1417'])]
+    df_planes_creados = filtrar_planes_cuidado_creado(df_actividades_consolidados, filtrar_por_tipo='PLAN DE CUIDADO CREADO')
+
+    df_planes_firmados = filtrar_planes_cuidado_verificar_firma(df_actividades_consolidados,df_planes_creados, filtrar_por_tipo='PLAN DE CUIDADO FIRMADO')
+
+    #df_planes_firmados.to_csv('reportes.csv', index=False)
+
+
+    # no poner aqui los que no seanplan de cuidad ni firmado
+    df_actualizaciones_ficha = df_actividades_consolidados[~df_actividades_consolidados['conteo_plan_cuidado'].isin(['PLAN DE CUIDADO FIRMADO', 'PLAN DE CUIDADO CREADO'])]
+
+    df_actividades_consolidados = pd.concat([df_planes_firmados, df_planes_creados, df_actualizaciones_ficha], ignore_index=True)
 
     cargar_actividades(df_actividades_consolidados, reporte, sheet_id, client)
+
+
 
     #df_responsables_plan_cuidado = df_actividades_consolidados[df_actividades_consolidados['conteo_plan_cuidado'] != '0']
 
@@ -135,16 +204,14 @@ def cargar_actividades(df_actividades_consolidados, reporte, sheet_id, client):
 
     df_actividades_consolidados.to_csv(F'../reportes/{reporte}/looker/consolidado_actividades_{reporte}.csv',
                                        index=False)
-
-    #df_actividades_consolidados = df_actividades_consolidados.delete(columns=['historial'])
-    #sobrescribir_hoja(sheet_id, "consolidado_actividades", df_actividades_consolidados, client)
+    df_actividades_consolidados = df_actividades_consolidados.drop(['observacion_id', 'familia_id','sociambiental_id','juventudadultos_id'], axis=1)
+    sobrescribir_hoja(sheet_id, "ACTIVIDADES", df_actividades_consolidados, client)
 
 def verificar_nuevas_caracterizaciones(row, df_familias):
     registro_json = json_to_dict(row)
 
     sociambiental_id = row.get('sociambiental_id')
     if ['sociambiental_id'] is not None and sociambiental_id != 'nan':
-        print(f"Verificando nueva caracterización para sociambiental_id: {sociambiental_id}")
         df_familia = df_familias[df_familias['sociambiental_id'] == int(float(sociambiental_id))]
 
         if not registro_json.get('updateDate') and  row.get('fecha') > '2025-12-31' and not df_familia.empty:
@@ -263,6 +330,8 @@ def verificar_plan_cuidado(row, df_familias):
             return f"PLAN DE CUIDADO FIRMADO | {familia_id}"
         if registro_json.get('actividaddesarrollar'):
             return f"PLAN DE CUIDADO CREADO | {familia_id}"
+        if registro_json.get('actividaddesarrollar') == '':
+                return f"PLAN DE CUIDADO NO VALIDO | {familia_id}"
         else :
             return f"0"
 
