@@ -1,4 +1,5 @@
 from base64 import decode
+import random
 
 import mysql
 import pandas as pd
@@ -6,6 +7,7 @@ import mysql.connector
 from rdflib.tools.csv2rdf import column
 
 from credenciales import MYSQL_APS, MYSQL_REPLICA_PASSWORD, MYSQL_REPLICA_USER, DATABASE_APS2024
+from export_aps_124 import limpiar_tildes
 from mysql_conector import ejecutar_consulta_mysql
 
 # 1|NI|900091143|2026-03-01|2026-03-31|260
@@ -62,6 +64,87 @@ def aps_cedular_ya_reportadas():
 
     print("Columna 2 actualizada correctamente.")
 
+
+import random
+
+
+def nombrar_responsables_archivo_aps():
+    ruta_archivo_plano = "C:/Users/Esteban Getial/OneDrive/Desktop/F.txt"
+    ruta_salida = "C:/Users/Esteban Getial/OneDrive/Desktop/CORREJIDO.txt"
+
+    # Lista originalizada con [Nombre, Rol, Cédula]
+    responsables_origen = [
+        ["Edith Angelica López Villarreal", "TERAPEUTAOCUPACIONAL", 59310145],
+        ["YURANI NATALI BURBANO DIAZ", "PSICOLOGO", 1086360022],
+        ["Juan Pablo Madroñero Muñoz", "PSICOLOGO", 13069636],
+        ["Carol Silvana Patiño", "PSICOLOGO", 1085313870],
+        ["Cindy Estefanie Gonzalez Del Castillo", "PSICOLOGO", 1085303067],
+        ["DANNY ALEXANDER SANCHEZ ESTRADA", "PSICOLOGO", 1085264667],
+        ["YOHANA KATERING PANTOJA MELO", "MEDICO", 1089846684],
+        ["Jeisson Steven Basante Erazo", "GESTORCOMUNITARIO", 1085347173],
+        ["Lady Carolina Tibaquirá Ballesteros", "ENFERMERA", 1014212900],
+        ["CARMEN LILIANA ARMERO RUIZ", "ENFERMERA", 1085248939],
+        ["JOSE EDILBERTO CORDOBA PANTOJA", "ENFERMERA", 1089844032],
+        ["VANESSA KATHERINE JOJOA ARIAS", "AUXILIARESDEENFERMERIA", 1085286742],
+        ["Pablo José Bados López", "AUXILIARESDEENFERMERIA", 1004232508],
+        ["GABRIEL SEBASTIAN MORINELLY ROJAS", "AUXILIARESDEENFERMERIA", 1080046034],
+        ["María José Leitón Zutta", "AUXILIARESDEENFERMERIA", 1085327701],
+        ["YONATAN MENA GRIJALBA", "AUXILIARESDEENFERMERIA", 87030128],
+        ["Andrea Nathaly Alava Bolaños", "AUXILIARESDEENFERMERIA", 1004216993],
+        ["KAROL DAYANA TONGUINO TORO", "AUXILIARESDEENFERMERIA", 1137624011],
+        ["LORENA DEL CARMEN OJEDA VASQUEZ", "AUXILIARESDEENFERMERIA", 1086329609],
+        ["MARIA ALEJANDRA DIAZ ORTEGA", "AUXILIARESDEENFERMERIA", 1086361622],
+        ["KELLY YURANY JOJOA BOTINA", "AUXILIARESDEENFERMERIA", 1085339190],
+        ["TANIA KARINA CUERO CASANOVA", "AUXILIARESDEENFERMERIA", 1004235480],
+        ["Yolldy Lizeth Cabrera", "AUXILIARESDEENFERMERIA", 1088733625],
+        ["KARELIS NATALY ZHENG MONSALVE", "AUXILIARESDEENFERMERIA", 5930737],
+        ["ZULY MARIANA HIDALGO JOJOA", "AUXILIARESDEENFERMERIA", 1086328142],
+    ]
+
+
+    # Agrupamos las CÉDULAS por ROL en el diccionario
+    roles_dict = {}
+    for nombre, rol, cedula in responsables_origen:
+        rol_key = rol.upper().strip()
+        if rol_key not in roles_dict:
+            roles_dict[rol_key] = []
+        # Guardamos la cédula directamente como texto para evitar problemas de formateo posterior
+        roles_dict[rol_key].append(str(cedula))
+
+    # Leemos las líneas del archivo plano
+    with open(ruta_archivo_plano, "r", encoding="utf-8") as f:
+        lineas = f.readlines()
+
+    lineas_procesadas = []
+
+    # Iteramos línea por línea del archivo plano
+    for linea in lineas:
+        partes = linea.strip().split("|")
+
+        # Verificamos que la línea tenga las columnas necesarias (mínimo índice 23)
+        if len(partes) > 23:
+            rol_en_linea = partes[23].strip().upper()
+            nombre_actual_en_linea = partes[22].strip()
+
+            # Solo asignamos si el campo de la cédula/responsable (columna 22) está vacío
+
+                # Si el rol de la línea coincide con nuestro diccionario
+            if rol_en_linea in roles_dict:
+                    # Selecciona una cédula aleatoria de la lista de ese rol
+                    cedula_aleatoria = random.choice(roles_dict[rol_en_linea])
+
+                    # Como es un número de cédula convertido a texto, removemos espacios por seguridad
+                    # (Ya no usamos .upper() porque las cédulas no llevan letras)
+                    partes[22] = cedula_aleatoria.replace(" ", "")
+
+        # Volvemos a armar la línea manteniendo la estructura original
+        lineas_procesadas.append("|".join(partes) + "\n")
+
+    # Guardamos los resultados en el archivo de salida
+    with open(ruta_salida, "w", encoding="utf-8") as f:
+        f.writelines(lineas_procesadas)
+
+    print("¡Archivo de APS procesado con éxito! Se asignaron las CÉDULAS de forma aleatoria.")
 
 def cargar_indicadores():
     connection = mysql.connector.connect(
@@ -164,7 +247,8 @@ def convertir_to_json():
 
 if __name__ == "__main__":
     #main()
-    aps_cedular_ya_reportadas()
+    nombrar_responsables_archivo_aps()
+    #aps_cedular_ya_reportadas()
     #cargar_indicadores()
     #unir_csv_falla_coordenadas()
     #unir_csv_falla_familias()

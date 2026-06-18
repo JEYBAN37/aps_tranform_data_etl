@@ -78,7 +78,8 @@ def query_familia(database):
         o.valoracionfamilia,
         o.fortalezas,
         o.entornoafectado,
-        o.indicadorria
+        o.indicadorria,
+        o.id AS observacion_id
 
     FROM {database}.familias f
 

@@ -1,9 +1,12 @@
 import os
+from itertools import groupby
 
 import pandas as pd
+from win32ctypes.pywin32.pywintypes import datetime
 
 from automatizacion_looker_aps.personas.personas import cargar_personas
 from automatizacion_looker_aps.responsables.responsable import cargar_responsables
+from automatizacion_looker_aps.utils.cargar_big_query import cargar_csv_a_bigquery, limpiar_formatos
 from credenciales import MYSQL_APS, MYSQL_REPLICA_USER, MYSQL_REPLICA_PASSWORD, DATABASE, \
     DATABASE_APS2025, URL_CONTRATACION_PLANTILLA
 import mysql.connector
@@ -11,81 +14,11 @@ import mysql.connector
 from limpieza_datos import extraer_distribucion_redes
 
 
-def procesar_base():
 
-    url ="bases_downloads/Informe de Produccion Servicio Plan Unidad (13).xlsx"
-    produccion = pd.read_excel(url, skiprows=2)
-    # Luego eliminamos las primeras 2 columnas si no las necesitas
-    df_produccion = produccion.iloc[:, 2:]
-    print(df_produccion.head())
-
-    df_responsables,df_personas = df_cruce_con_db()
-
-    df_responsables_activo = df_responsables[df_responsables['contrato'] == 'ACTIVO']
-
-    df_produccion_filtrada = df_produccion[df_produccion['Ident Medico'].isin(df_responsables_activo['numero'])]
-
-    df_produccion_filtrada.drop_duplicates(subset=['Identificacion'], inplace=True)
-
-    df_hogares_atendidos = df_produccion_filtrada[df_produccion_filtrada['Identificacion'].isin(df_personas['numero'])]
-
-
-
-
-
-    # PRIMERO APLICAR FILTRO NUM PLAN SOLO PARA ENSSANAR PGPCRONICOS ADICIONAL CRONICOS
-
-
-
-
-
-    # SUBSIADIADO CAPUTADO  CAPITA RIAS APLICAR LOS FILTROS ADICIONAL FILTROS SERVICIOS AMBULATORIO PREVENTICON
-
-    PERFILES = [
-        ('JEFE DE ENFERMERIA'),
-        ('AUXILIAR DE ENFERMERIA'),
-        'MEDICINA GENERAL0,'
-        'PSICOLOGIA'
-        'NUTRICION CLINICA',
-        'ODONTOLOGIA',
-        'GINECOLOGIA Y OBSTETRICIA',
-        'MEDICINA INTERNA',
-        'PEDIATRIA'
-    ]
-
-    # campo nombre de servicio
-    SERVICIOS = ["CONSULTA DE CONTROL O SEGUIMIENTO POR ENFERMERA",
-                 "CONSULTA DE CONTROL O SEGUIMINETO POR ENFERMERIA RIAS","CONSULTA POR PRIMERA VEZ POR ENFERMERIA RIAS",
-                 "TAMIZAJE POR RIESGO CARDIOVASCULAR",
-                 "ATENCION VISITA DOMICILIARIA POR ENFERMERIA"]
-
-
-    # FILTRO LA HOJA DE RIAS EDAD
-    # PRIMERA INFANCIA 0.08 - 6 AÑOS
-    # INFANCIA 6 AÑOS 12
-    # ADOLESCENCIA 12 AÑOS 18
-    # JUVENTUD 18 AÑOS 29
-    # ADULTEZ 29 AÑOS 60
-    # VEJEZ 60 X 100PRE
-
-    # RUTA MATERNO SOLO APLICA MUJERES 11 AÑOS 50 SI EL DAINOSTICO EMPIEZZA POR DIAGNOSTICO PRINCIPAL SIEMPRE DEBE SER "Z"
-    # Z321
-    # Z713
-    # Z300
-    # Z391
-    # Z358
-    # Z392
-    # Z392
-
-    # FILTRRAR CRONICOS EN NUM PLAM =  pgp
-
-    # DUPLICADO QUITAR POR CEDULA MISMO NOMBRE DE SERVICIO SI TIENEN EL MISMO
-
-    print(f"Hay {len(df_hogares_atendidos)} filas")
-    print(f"Hay {len(df_produccion_filtrada)} filas")
-
-def df_cruce_con_db():
+def indicadores_salud_publica():
     global cursor
+
+    RANGO_FECHA = datetime.strptime("2026-01-01", "%Y-%m-%d")
 
 
     connection = mysql.connector.connect(
@@ -98,70 +31,89 @@ def df_cruce_con_db():
 
     try:
 
-        url = "bases_downloads/reporte_unificado_2024_2026.csv"
+        url = "bases_downloads/reporte_unificado_2026.csv"
         produccion = pd.read_csv(url)
         # Luego eliminamos las primeras 2 columnas si no las necesitas
         print(produccion.head())
 
         cursor = connection.cursor()
-        responsables_ebs = cargar_responsables( cursor, DATABASE)
-        connection.commit()
+        #responsables_ebs = cargar_responsables( cursor, DATABASE)
+        #connection.commit()
+
+        personas_url = "F:/APS AUTOMATIZACIONES/reportes/2026-06-11/looker/cosolidado_personas_2026-06-11.csv"
+        df_personas = pd.read_csv(personas_url)
+        df_personas['doc_id'] = df_personas['doc_id'].astype(str).str.strip().str.split(".").str[0]
+        df_personas['familia_id'] = df_personas['familia_id'].astype(str).str.strip().str.split(".").str[0]
+
 
         df_contratacion = pd.read_csv(URL_CONTRATACION_PLANTILLA)
 
         df_contratacion['identificacion_contratista'] = df_contratacion['identificacion_contratista'].astype(str).str.strip().str.split(".").str[0]
+        df_contratacion['fecha_finalizacion'] = pd.to_datetime(df_contratacion['fecha_finalizacion'], format='%d/%m/%Y',
+                                                               errors='coerce')
+
+        df_contratacion_filtrada = df_contratacion[
+            df_contratacion['fecha_finalizacion'] >= RANGO_FECHA
+            ]
+
 
         produccion['Ident Medico'] = produccion['Ident Medico'].astype(str).str.strip().str.split(".").str[0]
-        produccion['CodPres'] = produccion['CodPres'].astype(str).str.strip().str.split(".").str[0]
-
-        df_produccion_cruzada = produccion[produccion['Ident Medico'].isin(df_contratacion['identificacion_contratista']) | produccion['CodPres'].isin(df_contratacion['identificacion_contratista'])]
+        produccion['Edad'] = produccion['Edad'].astype(str).str.strip().str.split(" ").str[0]
 
 
-        df_aps_atenciones = pd.DataFrame([{
-                'identificacion_paciente': row['Identificacion'],
-                'nombre_paciente': row['Nombre Paciente'] | row['Nombre_Paciente'],
-                'fecha_nacimiento': row['Fecha Nac'] | row['FechaNac'],
-                'telefono': row['TelRes'] | row['Telefono'],
-                ''
-                'direccion_paciente': row['DirAfil'] | row['Dir Afil'],
-                'identificacion_medico': row['Ident Medico'] | row['CodPres'],
-                'nombre_medico': row['Nombre'] | row['Nombre Medico'],
+        produccion_filtrada = produccion.merge(
+            df_contratacion_filtrada[['identificacion_contratista', 'rol_del_contratista']],
+            left_on='Ident Medico',
+            right_on='identificacion_contratista',
+            how='left'
+        )
+        produccion_filtrada = produccion_filtrada[[
+            'Identificacion', 'Tipo ID', 'Nombre Paciente', 'Dir Afil', 'Telefono',
+            'Nombre Servicio', 'Cod Diag', 'Cod Diag Rel1', 'Cod Diag Rel2', 'Cod Diag Rel3',
+            'Edad', 'Fecha Servicio', 'IPS', 'RED', 'rol_del_contratista','identificacion_contratista','Finalidad','Nombre Medico','Unidad Func','Sexo'
+        ]]
 
-            } for _, row in df_produccion_cruzada.iterrows()
-            ])
+        produccion_filtrada = produccion_filtrada[produccion_filtrada['rol_del_contratista'].notna()]
 
+        df_personas_unico = df_personas[['doc_id', 'familia_id']].drop_duplicates(subset=['doc_id'], keep='first')
 
-        df_produccion_cruzada = df_produccion_cruzada.drop_duplicates(subset=['Identificacion', 'Ident Medico'], keep='first')
+        # 2. Hacemos el merge con este nuevo dataframe limpio
+        produccion_x_familia = produccion_filtrada.merge(
+            df_personas_unico,
+            left_on='Identificacion',
+            right_on='doc_id',
+            how='left'
+        )
 
-        grupos = df_contratacion.groupby(by=['resolucion'])
-        periodos_contratacion = [grupo for _, grupo in grupos]
-        for resolucion in periodos_contratacion:
+        # 3. (Opcional) Si no quieres que te quede la columna 'doc_id' repetida, la puedes eliminar
+        produccion_x_familia = produccion_x_familia.drop(columns=['doc_id'])
 
-            # hacer una fecha inicial y final
-            # con entre la fecha de contratao ams reciente y l afecha de finalizacion mas antigua y segun eso tomar las fechas
-
-            fecha_fin = resolucion['']
-
-            atenciones = produccion
-
-            caracaterizaciones = "verificar varibles de las personas"
-
-
+        persona = produccion_filtrada[produccion_filtrada['identificacion_contratista'] == '1193458466']
 
 
+        # diagnosticos_disponibles = produccion_filtrada['Cod Diag'].dropna().unique()
+        # servicios_disponibles = produccion_filtrada['Nombre Servicio'].dropna().unique()
+        #
+        #
+        # print(f"Diagnósticos disponibles: {diagnosticos_disponibles}")
+        # print(f"Servicios disponibles: {servicios_disponibles}")
 
-        df_personal_total = df_contratacion.merge()
-
-        df_resolucion_actual = responsables_ebs[responsables_ebs['contrato'] == 'ACTIVO']
 
 
-        cursor = connection.cursor()
-        df_distribucion_redes = extraer_distribucion_redes()
-        personas = cargar_personas(cursor, df_distribucion_redes,'','client',DATABASE,"1g6865j3cOGhkj6VAkfIqcJqScB4eWTXUqrZx16Czhuo")
-        connection.commit()
+        # filtro_diagnostico = produccion_filtrada['Cod Diag'].str.startswith(('Z321', 'Z713', 'Z300', 'Z391', 'Z358', 'Z392'), na=False)
+        # filtro_edades = (produccion_filtrada['Edad'] >= 11) & (produccion_filtrada['Edad'] <= 50)
+        # filtro_servicios = produccion_filtrada['Nombre Servicio']
+        #
+        # produccion_filtrada = produccion_filtrada[filtro_diagnostico & filtro_edades & filtro_servicios]
+        #
+        # agrupado_por_meses_y_conteo = produccion_filtrada.groupby(produccion_filtrada['Fecha'].str[:7])['Identificacion'].nunique().reset_index()
+        # agrupado_por_meses_y_conteo.columns = ['Mes', 'Cantidad Personas']
+        produccion_x_familia = limpiar_formatos(produccion_x_familia, columnas_fecha=['Fecha Servicio'])
 
-        return responsables_ebs,personas
+        cargar_csv_a_bigquery(produccion_x_familia, table_id="datos_aps.atenciones_ebs", project_id="aps-project-478903",
+                              )
 
+        print(f"Filtrado por contratacion: {len(produccion_x_familia)} filas")
 
 
     except Exception as e:
@@ -174,9 +126,10 @@ def df_cruce_con_db():
         connection.close()
 
 
+
 def unir_reportes_facturacion():
     # una ruta abrir losa rchivo csv o xlsx y unirlos en un solo dataframe
-    ruta = "E:\FACTURACION (1)\FACTURACION\APS"
+    ruta = r"F:\APS AUTOMATIZACIONES\aps\automatizacion_looker_aps\produccion_ese\bases_downloads\FACTURACION_2026"
     df_principal = pd.DataFrame()
 
     # mejor concatenación: leer todos los archivos, normalizar columna Identificacion y concatenar
@@ -204,9 +157,9 @@ def unir_reportes_facturacion():
         df_concat = pd.concat(dfs, ignore_index=True, sort=False)
         # conservar la primera aparición no nula por Identificacion
         df_principal = df_concat
-    out_path = os.path.join("bases_downloads", "reporte_unificado_2024_2026.csv")
+    out_path = os.path.join("bases_downloads", "reporte_unificado_2026.csv")
     df_principal.to_csv(out_path, index=False)
 
 if __name__ == "__main__":
     #unir_reportes_facturacion()
-    df_cruce_con_db()
+    indicadores_salud_publica()

@@ -634,6 +634,7 @@ def evaluacion_poblacional(param, edad=None, discapacidad=None, gestante=None, r
 def limpiar_formato_tala(param):
     # con expresion regular quitar letras tildes comas puntos
     try:
+        resultado = ''
         if pd.isna(param):
             return ''
 
@@ -646,9 +647,11 @@ def limpiar_formato_tala(param):
         # "000123" -> "123"
         # "00.45"  -> ".45"
 
-        if len(resultado) <= 2:
-            param = resultado + '0'
-        return resultado
+        if resultado == '0' or resultado == '0.0':
+            return ''
+
+
+
     except ValueError:
         return ''
 
@@ -682,6 +685,10 @@ def limpiar_formato_peso(param):
         elif resultado == '':
             return ''
         elif resultado == '0':
+            return ''
+        elif resultado == '00':
+            return ''
+        elif resultado == '0.0':
             return ''
         return resultado + '.0'
     except Exception:
@@ -825,73 +832,73 @@ def main():
 
     try:
         cursor = connection.cursor()
-        # familias_query = ejecutar_consulta_mysql(query_familias(TERRITORIO, MICROTERRITORIO) , cursor)
-        #
-        # if not familias_query:
-        #     print("No se encontraron familias para el territorio y microterritorio especificados.")
+        familias_query = ejecutar_consulta_mysql(query_familias(TERRITORIO, MICROTERRITORIO) , cursor)
+
+        if not familias_query:
+            print("No se encontraron familias para el territorio y microterritorio especificados.")
 
 
         FE_REPORTE = datetime.now().strftime('%Y-%m-%d')
 
-        # df_familias = pd.DataFrame(familias_query, columns=[
-        #     'id_familia_db',
-        #     'id_sociambiental_db',
-        #     'latitud',
-        #     'longitud',
-        #     'direccion',
-        #     'hacinamiento',
-        #     'territorio',
-        #     'microterritorio',
-        #     'nombre_barrio',
-        #     'estrato',
-        #     'numerohogares',
-        #     'numerohabitantes',
-        #     'hogar',
-        #     'tipodocr',
-        #     'docr',
-        #     'profesion',
-        #     'fecha',
-        #     'vivienda',
-        #     'pared',
-        #     'piso',
-        #     'techo',
-        #     'dormitorios',
-        #     'riesgo',
-        #     'acceso',
-        #     'combustible',
-        #     'vector',
-        #     'riesgoexterno',
-        #     'actividad',
-        #     'mascotas',
-        #     'numeroPerros',
-        #     'numeroGatos',
-        #     'aguaservicio',
-        #     'diposicionexcretas',
-        #     'aguaresiduales',
-        #     'basura',
-        #     'tipofamilia',
-        #     'numeropersonas',
-        #     'resultadofamiliograma',
-        #     'calculoapgar',
-        #     'calculozarit',
-        #     'zaritfuncionalidad',
-        #     'resultadoecomapa',
-        #     'poblacionvulnerable',
-        #     'riesgopsicosocial',
-        #     'estilodevidapredominante',
-        #     'antecedenteenfermedad',
-        #     'saludalternativa',
-        #     'alimentos',
-        #     'programasocial',
-        #     'higiene',
-        #     'total_personas_cursos_vida',
-        #     'estado'
-        # ])
-        #
-        # df_familias.to_csv('familias_actual.csv', index=False)
+        df_familias = pd.DataFrame(familias_query, columns=[
+            'id_familia_db',
+            'id_sociambiental_db',
+            'latitud',
+            'longitud',
+            'direccion',
+            'hacinamiento',
+            'territorio',
+            'microterritorio',
+            'nombre_barrio',
+            'estrato',
+            'numerohogares',
+            'numerohabitantes',
+            'hogar',
+            'tipodocr',
+            'docr',
+            'profesion',
+            'fecha',
+            'vivienda',
+            'pared',
+            'piso',
+            'techo',
+            'dormitorios',
+            'riesgo',
+            'acceso',
+            'combustible',
+            'vector',
+            'riesgoexterno',
+            'actividad',
+            'mascotas',
+            'numeroPerros',
+            'numeroGatos',
+            'aguaservicio',
+            'diposicionexcretas',
+            'aguaresiduales',
+            'basura',
+            'tipofamilia',
+            'numeropersonas',
+            'resultadofamiliograma',
+            'calculoapgar',
+            'calculozarit',
+            'zaritfuncionalidad',
+            'resultadoecomapa',
+            'poblacionvulnerable',
+            'riesgopsicosocial',
+            'estilodevidapredominante',
+            'antecedenteenfermedad',
+            'saludalternativa',
+            'alimentos',
+            'programasocial',
+            'higiene',
+            'total_personas_cursos_vida',
+            'estado'
+        ])
+
+        df_familias.to_csv('familias_actual.csv', index=False)
         # exit()
 
-        df_familias = pd.read_csv('familias_actual.csv')
+        # df_familias = pd.read_csv('familias_actual.csv')
 
 
 
