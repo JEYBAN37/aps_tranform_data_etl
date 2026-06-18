@@ -31,7 +31,7 @@ pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tessera
 
 BASE_SECOP = "bases/SECOP_II_-_Procesos_de_Contratación_20260327.csv"
 CONTRATOS = "bases/contratos_consolidado_real.xlsx"
-RESOLUCION = "1778"
+RESOLUCION = "1397"
 
 # --- EL MÉTODO SE PONE AQUÍ (FUERA DEL MAIN) ---
 def configurar_driver(ruta_descarga):
@@ -537,8 +537,8 @@ def unificar_contratos():
         print(f"  ❌ Errores   : {len(resultados['errores'])}")
 
 
-DPI_MAESTRO = 50  # mínimo legible para documentos escaneados
-JPEG_MAESTRO = 45  # agresivo pero texto aún legible
+DPI_MAESTRO = 90 # mínimo legible para documentos escaneados
+JPEG_MAESTRO = 90  # agresivo pero texto aún legible
 
 
 def optimizar_pdf_agresivo(ruta_entrada: str, ruta_salida: str) -> dict:
@@ -585,19 +585,26 @@ def optimizar_pdf_agresivo(ruta_entrada: str, ruta_salida: str) -> dict:
 
 
 def crear_pdf_maestro_agreesivo(carpeta_base: str, nombre_maestro: str = "TODOS_LOS_CONTRATOS_1778.pdf",
-                                nombre_a_unificar: str = "CONTRATO_UNIFICADO_") -> str | None:
+                                nombre_a_unificar: str = "CONTRATO_UNIFICADO_",contratos_opcion : bool = True) -> str | None:
     ruta_maestro = os.path.join(carpeta_base, nombre_maestro)
     ruta_sin_opt = os.path.join(carpeta_base, "MAESTRO_SIN_OPTIMIZAR.pdf")
     df_guia = pd.read_excel(CONTRATOS, sheet_name=RESOLUCION)
     # ── Paso 1: unir todos sin optimizar ────────────────────────
     archivos_unificados = []
-    for subcarpeta in df_guia["numero_contrato"].apply(lambda x: str(x).replace("/", "-")):
-        ruta_sub = os.path.join(carpeta_base, subcarpeta)
-        if not os.path.isdir(ruta_sub):
-            continue
-        for archivo in os.listdir(ruta_sub):
+
+    if contratos_opcion:
+        for subcarpeta in df_guia["numero_contrato"].apply(lambda x: str(x).replace("/", "-")):
+            ruta_sub = os.path.join(carpeta_base, subcarpeta)
+            if not os.path.isdir(ruta_sub):
+                continue
+            for archivo in os.listdir(ruta_sub):
+                if archivo.startswith(nombre_a_unificar) and archivo.endswith(".pdf"):
+                    archivos_unificados.append(os.path.join(ruta_sub, archivo))
+
+    else:
+        for archivo in os.listdir(carpeta_base):
             if archivo.startswith(nombre_a_unificar) and archivo.endswith(".pdf"):
-                archivos_unificados.append(os.path.join(ruta_sub, archivo))
+                archivos_unificados.append(os.path.join(carpeta_base, archivo))
                 # break
 
     if not archivos_unificados:
@@ -732,7 +739,7 @@ def listar_certificados():
 
 
 if __name__ == "__main__":
-    # descargar_contratos()
+    #descargar_contratos()
 
     ## Se encarga de revisar cada contrato descargado, extraer el texto, buscar las keywords y renombrar los archivos
     #listar_contratos()
@@ -743,13 +750,10 @@ if __name__ == "__main__":
     # Se encarga de obtener el contratos y unirlos en uno solo
     #unificar_contratos()
 
-    # Paso 2 — PDF maestro con todos
-    crear_pdf_maestro_agreesivo(carpeta_base=RESOLUCION)
-
-    # Paso 4 Unificar certificado de supervision
+    # Paso 3  Unificar certificado de supervision
     # listar_certificados()
 
-    # Paso 5 Unificar certificados de supervision
-    # crear_pdf_maestro_agreesivo(carpeta_base="1778", nombre_maestro="SER124SREC20260331NI000900091143ID2177823635D03.pdf", nombre_a_unificar="ACTA_")
+    # Paso 4 Unificar certificados de supervision
+    crear_pdf_maestro_agreesivo(carpeta_base="1778", nombre_maestro="SER124SREC20260331NI000900091143ID2177823635D03.pdf", nombre_a_unificar="ACTA_")
 
     # se erncarga de unificar los contratos en un solo PDF por contrato, para facilitar su lectura y análisis posterior ademas de bajar el peso de los archivos.

@@ -74,34 +74,32 @@ def main():
     try:
 
         cursor = connection.cursor()
-        # df_personas = cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1g6865j3cOGhkj6VAkfIqcJqScB4eWTXUqrZx16Czhuo")
-        # connection.commit()
-
-        #personas_url = "F:/APS AUTOMATIZACIONES/reportes/2026-05-25/looker/cosolidado_personas_2026-05-25.csv"
-        #df_personas = pd.read_csv(personas_url)
-
-        # cursor = connection.cursor()
-        # df_familia , df_situaciones_priorizadas = cargar_familias( cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI")
-        # connection.commit()
-
-        df_situaciones_priorizadas = pd.read_csv(F'../reportes/{FE_REPORTE}/looker/situaciones_priorizadas_{FE_REPORTE}.csv')
-
-        # familias_url = "F:/APS AUTOMATIZACIONES/reportes/2026-05-25/looker/cosolidado_familias_2026-05-25.csv"
+        df_personas = cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1g6865j3cOGhkj6VAkfIqcJqScB4eWTXUqrZx16Czhuo")
+        connection.commit()
+        #
+        # personas_url = "F:/APS AUTOMATIZACIONES/reportes/2026-06-11/looker/cosolidado_personas_2026-06-11.csv"
+        # df_personas = pd.read_csv(personas_url)
+        # #
+        cursor = connection.cursor()
+        df_familia , df_situaciones_priorizadas = cargar_familias( cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1HbJo2ZINdgZshcAIj7I1u-azaXPZHd1KbNdsdTASQGI")
+        connection.commit()
+        #
+        #
+        # # df_situaciones_priorizadas = pd.read_csv(F'../reportes/2026-05-27/looker/situaciones_priorizadas_2026-05-27.csv')
+        # #
+        # familias_url = "F:/APS AUTOMATIZACIONES/reportes/2026-06-11/looker/cosolidado_familias_2026-06-11.csv"
         # df_familia = pd.read_csv(familias_url)
+        #
+        cursor = connection.cursor()
+        responsables_ebs = cargar_responsables( cursor, DATABASE)
+        connection.commit()
 
-        # cursor = connection.cursor()
-        # responsables_ebs = cargar_responsables( cursor, DATABASE)
-        # connection.commit()
 
+        cursor = connection.cursor()
+        filtro_actividades(cursor, df_familia, DATABASE, df_personas,FE_REPORTE,client,"14NIa4AlbXU5pVXmhLBbJwnidy4HmI2ZatFfMJ91ThXw",responsables_ebs)
+        connection.commit()
 
-        # cursor = connection.cursor()
-        # filtro_actividades(cursor, df_familia, DATABASE, df_personas,FE_REPORTE,client,"14NIa4AlbXU5pVXmhLBbJwnidy4HmI2ZatFfMJ91ThXw",responsables_ebs)
-        # connection.commit()
-
-        verificar_indicadores(df_situaciones_priorizadas)
-
-        exit()
-
+        verificar_indicadores(df_situaciones_priorizadas,sheet_id="1_jymVqZ5GocxJZTtoBZky94O0B5JoXa95Cn3lGw7scI",client=client)
 
         cursor = connection.cursor()
         cargar_novedades(cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1Yr9gvmWQ7i6ANgI-9LAW8Yfwi6HScJfF7ll3nm0StTE")

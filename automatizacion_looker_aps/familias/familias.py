@@ -52,7 +52,7 @@ def cargar_familias(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
 
     for i, col in enumerate(df_familias_consolidados.columns):
         if df_familias_consolidados.dtypes.iloc[i] == object and col not in (
-                'longitud', 'latitud', 'familiograma', 'plancuidado','involucrado_plan_cuidado', 'menoresriegosalud', 'riesgovulnerabilidad', 'fortalezas','actividaddesarrollar'):
+                'longitud', 'latitud', 'familiograma', 'plancuidado','involucrado_plan_cuidado', 'menoresriegosalud', 'riesgovulnerabilidad', 'fortalezas','actividaddesarrollar','entornoafectado','indicadorria'):
             df_familias_consolidados.iloc[:, i] = df_familias_consolidados.iloc[:, i].astype(
                 str).str.strip().str.replace(r'[^\w\s]', '', regex=True)
 
@@ -96,10 +96,10 @@ def cargar_familias(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
 
     df_familias_consolidados = limpiar_formatos( df_familias_consolidados, columnas_fecha=['fecha', 'reporte_fecha'])
 
-    df_situaciones_prioritarias = df_familias_consolidados[['familia_id','sociambiental_id','actividaddesarrollar','involucrado_plan_cuidado']]
+    df_situaciones_prioritarias = df_familias_consolidados[['familia_id','sociambiental_id','actividaddesarrollar','involucrado_plan_cuidado','observacion_id']]
 
     # elimianr alguans columans
-    df_familias_consolidados.drop(columns=['actividaddesarrollar'], inplace=True)
+    df_familias_consolidados.drop(columns=['actividaddesarrollar','observacion_id'], inplace=True)
 
     cargar_csv_a_bigquery(df_familias_consolidados, table_id="datos_aps.familias", project_id="aps-project-478903",
                           )

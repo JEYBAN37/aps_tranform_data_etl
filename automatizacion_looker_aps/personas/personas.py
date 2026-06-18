@@ -107,7 +107,7 @@ def cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
                          ('Famisanar','aachicanoy@famisanar.com.co'),
                          ('FAMISANAR', 'aachicanoy@famisanar.com.co'),
                          ('Famissanar', 'aachicanoy@famisanar.com.co'),
-                         ('Nueva EPS', 'diana.riverar@nuevaeps.com.co'),
+                         ('Nueva EPS','dianariverarosero@gmail.com')
                          )
 
     # poner coluna correo_aseguradora_correspondiente con el correo correspondiente a cada aseguradora a las otras ponles en blanco

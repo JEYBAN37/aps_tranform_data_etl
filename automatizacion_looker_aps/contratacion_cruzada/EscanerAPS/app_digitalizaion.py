@@ -29,6 +29,7 @@ class AppDigitalizacion(ctk.CTk):
         self.df_contratos = None
         self.ruta_contrato_actual = ""
         self.acta_actual = ""
+        self.one_drive = ""
 
         # UI: Layout
         self.grid_columnconfigure(1, weight=1)
@@ -44,6 +45,10 @@ class AppDigitalizacion(ctk.CTk):
         self.btn_cambiar_base = ctk.CTkButton(self.sidebar_frame, text="Configurar Carpeta Raíz",
                                               command=self.configurar_base)
         self.btn_cambiar_base.grid(row=1, column=0, padx=20, pady=10)
+
+        self.btn_cambiar_base = ctk.CTkButton(self.sidebar_frame, text="Configurar Carpeta OneDrive",
+                                              command=self.configurar_onedrive)
+        self.btn_cambiar_base.grid(row=2, column=0, padx=40, pady=10)
 
         # Main Frame
         self.main_frame = ctk.CTkFrame(self, corner_radius=15)
@@ -193,11 +198,10 @@ class AppDigitalizacion(ctk.CTk):
             messagebox.showerror("Error", f"Falla escáner: {e}")
 
     def escanear_desde_celular(self, tipo_documento):
-        usuario = getpass.getuser()
-        ruta_onedrive = f"C:/Users/{usuario}/OneDrive/escaneos"
+
 
         try:
-            archivos = glob.glob(os.path.join(ruta_onedrive, "*.pdf"))
+            archivos = glob.glob(os.path.join(self.one_drive, "*.pdf"))
             if not archivos:
                 messagebox.showwarning("OneDrive", "No hay PDFs nuevos en la carpeta 'escaneos'.")
                 return
@@ -273,6 +277,16 @@ class AppDigitalizacion(ctk.CTk):
                 self.status_label.configure(text=f"Bases cargadas correctamente", text_color="#2ecc71")
             except Exception as e:
                 messagebox.showerror("Error", f"Falla al cargar archivos Excel:\n{e}")
+
+    def configurar_onedrive(self):
+        self.one_drive = filedialog.askdirectory(title="Seleccione carpeta 'escaneos' en OneDrive")
+        if self.carpeta_base:
+            try:
+                self.status_label.configure(text=f"deposito cargado correctamente", text_color="#2ecc71")
+            except Exception as e:
+                messagebox.showerror("Error", f"Falla al cargar archivos Excel:\n{e}")
+
+
 
 
 if __name__ == "__main__":
