@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 from google import genai
 
 # ── CONFIGURACIÓN ────────────────────────────────────────────────
-API_KEY = "AQ.Ab8RN6IDEnoMwEBq1Djo0GZRceVBzNYFwu4FQauA3WVa4YUPIg"
+API_KEY = "GCP_API_KEY"
 client = genai.Client(api_key=API_KEY)
 MODELO = "gemini-2.5-flash"  # Ultra rápido y estable
 
