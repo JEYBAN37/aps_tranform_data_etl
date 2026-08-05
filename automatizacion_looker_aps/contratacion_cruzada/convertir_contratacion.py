@@ -4,6 +4,7 @@ from typing import Tuple, Any
 
 import pandas as pd
 import pytesseract
+from numpy.ma.core import array
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.edge.service import Service
@@ -538,7 +539,7 @@ def unificar_contratos():
 
 
 DPI_MAESTRO = 90 # mínimo legible para documentos escaneados
-JPEG_MAESTRO = 90  # agresivo pero texto aún legible
+JPEG_MAESTRO = 80  # agresivo pero texto aún legible
 
 
 def optimizar_pdf_agresivo(ruta_entrada: str, ruta_salida: str) -> dict:
@@ -583,63 +584,116 @@ def optimizar_pdf_agresivo(ruta_entrada: str, ruta_salida: str) -> dict:
         "ahorro_pct": round(ahorro_pct, 1),
     }
 
+def obtener_prioridad(nombre_archivo):
+    # Convertimos a mayúsculas para comparar fácil
+    nombre = nombre_archivo.upper()
+
+    # Asignamos peso: menor número = va primero
+    if "_A_CONTRATO" in nombre:
+        return 1
+    elif "AB_ESTUDIOS" in nombre:
+        return 2
+    elif "_ABC_CDP" in nombre:
+        return 3
+    elif "_ABCD_REGISTRO" in nombre:
+        return 4
+    else:
+        return 5  # Todo lo demás tiene la misma prioridad
+
+
+
 
 def crear_pdf_maestro_agreesivo(carpeta_base: str, nombre_maestro: str = "TODOS_LOS_CONTRATOS_1778.pdf",
-                                nombre_a_unificar: str = "CONTRATO_UNIFICADO_",contratos_opcion : bool = True) -> str | None:
+                                nombre_a_unificar: str = "CONTRATO_UNIFICADO_",
+                                contratos_opcion: bool = True,
+                                codicion_especifica: Any = lambda x: True
+                                ) -> str | None:
+
     ruta_maestro = os.path.join(carpeta_base, nombre_maestro)
     ruta_sin_opt = os.path.join(carpeta_base, "MAESTRO_SIN_OPTIMIZAR.pdf")
-    df_guia = pd.read_excel(CONTRATOS, sheet_name=RESOLUCION)
-    # ── Paso 1: unir todos sin optimizar ────────────────────────
-    archivos_unificados = []
 
+    # Diccionario para agrupar: clave = nombre_carpeta (o prefijo), valor = lista de archivos
+    grupos = {}
+
+    # ── Paso 1: Recolectar y Agrupar ────────────────────────
     if contratos_opcion:
-        for subcarpeta in df_guia["numero_contrato"].apply(lambda x: str(x).replace("/", "-")):
+        df_guia = pd.read_excel(CONTRATOS, sheet_name=RESOLUCION)
+        for contrato in df_guia["numero_contrato"]:
+            subcarpeta = str(contrato).replace("/", "-")
             ruta_sub = os.path.join(carpeta_base, subcarpeta)
-            if not os.path.isdir(ruta_sub):
-                continue
-            for archivo in os.listdir(ruta_sub):
-                if archivo.startswith(nombre_a_unificar) and archivo.endswith(".pdf"):
-                    archivos_unificados.append(os.path.join(ruta_sub, archivo))
-
+            if os.path.isdir(ruta_sub):
+                archivos = [os.path.join(ruta_sub, f) for f in os.listdir(ruta_sub) if f.endswith(".pdf")]
+                if archivos:
+                    grupos[subcarpeta] = archivos
     else:
+        # Si no hay carpetas, intentamos agrupar por el prefijo (ej: ANEXO_851)
         for archivo in os.listdir(carpeta_base):
-            if archivo.startswith(nombre_a_unificar) and archivo.endswith(".pdf"):
-                archivos_unificados.append(os.path.join(carpeta_base, archivo))
-                # break
 
-    if not archivos_unificados:
-        print(f"⚠️  No se encontraron archivos {nombre_a_unificar}")
+            if archivo.__contains__(nombre_a_unificar) and archivo.endswith(".pdf"):
+                if codicion_especifica(archivo):
+                    # Usamos Regex para buscar el primer grupo de números (ej: 851)
+                    # Esto busca cualquier número que aparezca en el nombre del archivo
+                    match = re.search(r'(\d+)', archivo)
+
+                    if match:
+                        prefijo = match.group(1)  # Esto captura el '851' sin importar si está al inicio, medio o final
+                    else:
+                        prefijo = "SIN_NUMERO"
+
+                    print(f"Validando: {archivo} -> Agrupado en: {prefijo}")
+
+                    # Ahora agregamos de forma segura
+                    if prefijo not in grupos:
+                        grupos[prefijo] = []
+
+                    grupos[prefijo].append(os.path.join(carpeta_base, archivo))
+
+            # if archivo.endswith(".pdf"):
+            #     prefijo = archivo.split('_')[1]  # Ajusta según tu formato de nombre
+            #     if prefijo not in grupos: grupos[prefijo] = []
+            #     grupos[prefijo].append(os.path.join(carpeta_base, archivo))
+
+    if not grupos:
+        print(f"⚠️  No se encontraron archivos PDF para unificar")
         return None
 
-    archivos_unificados.sort(key=extraer_orden)
-
-    print(f"\n📚 Uniendo {len(archivos_unificados)} contratos...")
+    # ── PASO 2: Unión y Ordenamiento interno por grupo ──────────
+    print(f"\n📚 Uniendo contratos respetando el orden por contrato...")
     doc_maestro = fitz.open()
-    for ruta in archivos_unificados:
-        print(f"  📎 {os.path.basename(ruta)}")
-        with fitz.open(ruta) as doc:
-            doc_maestro.insert_pdf(doc)
 
+    # Ordenamos los grupos (ej: contrato 851, luego 852...)
+    for clave in sorted(grupos.keys()):
+        archivos_del_grupo = grupos[clave]
+
+        # Ordenamos los archivos DENTRO de este contrato usando tu prioridad
+        archivos_del_grupo.sort(key=lambda ruta: (
+            obtener_prioridad(os.path.basename(ruta)),
+            os.path.basename(ruta)
+        ))
+
+        print(f"📂 Procesando grupo: {clave}")
+        for ruta in archivos_del_grupo:
+            print(f"  📎 {os.path.basename(ruta)}")
+            with fitz.open(ruta) as doc:
+                doc_maestro.insert_pdf(doc)
+
+    # ── Paso 3: Guardar y Optimizar ────────────────────────────
     doc_maestro.save(ruta_sin_opt, garbage=4, deflate=True, clean=True)
     doc_maestro.close()
 
     peso_sin_opt = os.path.getsize(ruta_sin_opt) / 1024 / 1024
     print(f"\n  📊 Sin optimizar: {peso_sin_opt:.1f}MB")
 
-    # ── Paso 2: optimizar agresivo ───────────────────────────────
-    print(f"\n🗜️  Optimizando a 96 DPI / JPEG 45%...")
-    stats = optimizar_pdf_agresivo(ruta_sin_opt, ruta_maestro)
+    # (Aquí mantienes tu función de optimización)
+    print(f"\n🗜️  Optimizando...")
+    resultado = optimizar_pdf_agresivo(ruta_sin_opt, ruta_maestro)
 
-    print(f"\n✅ PDF maestro → {nombre_maestro}")
-    print(f"   📊 {stats['original_mb']}MB → {stats['final_mb']}MB (ahorro {stats['ahorro_pct']}%)")
-    print(f"   {'✅ Bajo 500MB' if stats['final_mb'] <= 500 else '⚠️  Aún sobre 500MB — bajar JPEG_MAESTRO a 35'}")
+    print(f"  📊 Optimizado: {resultado['final_mb']}MB (ahorro {resultado['ahorro_pct']}%)")
 
-    # Limpiar temporal
     if os.path.exists(ruta_sin_opt):
         os.remove(ruta_sin_opt)
 
     return ruta_maestro
-
 
 def rectificar_contratos():
     contratos_x_resolucion = pd.read_excel("bases/CONTRATOS_1778.xlsx")
@@ -739,7 +793,9 @@ def listar_certificados():
 
 
 if __name__ == "__main__":
-    #descargar_contratos()
+
+
+    descargar_contratos()
 
     ## Se encarga de revisar cada contrato descargado, extraer el texto, buscar las keywords y renombrar los archivos
     #listar_contratos()
@@ -754,6 +810,6 @@ if __name__ == "__main__":
     # listar_certificados()
 
     # Paso 4 Unificar certificados de supervision
-    crear_pdf_maestro_agreesivo(carpeta_base="1778", nombre_maestro="SER124SREC20260331NI000900091143ID2177823635D03.pdf", nombre_a_unificar="ACTA_")
+    #crear_pdf_maestro_agreesivo(carpeta_base="1778", nombre_maestro="SER124SREC20260331NI000900091143ID2177823635D03.pdf", nombre_a_unificar="ACTA_")
 
     # se erncarga de unificar los contratos en un solo PDF por contrato, para facilitar su lectura y análisis posterior ademas de bajar el peso de los archivos.

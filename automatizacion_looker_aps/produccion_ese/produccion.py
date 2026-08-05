@@ -70,7 +70,7 @@ def indicadores_salud_publica():
         produccion_filtrada = produccion_filtrada[[
             'Identificacion', 'Tipo ID', 'Nombre Paciente', 'Dir Afil', 'Telefono',
             'Nombre Servicio', 'Cod Diag', 'Cod Diag Rel1', 'Cod Diag Rel2', 'Cod Diag Rel3',
-            'Edad', 'Fecha Servicio', 'IPS', 'RED', 'rol_del_contratista','identificacion_contratista','Finalidad','Nombre Medico','Unidad Func','Sexo'
+            'Edad', 'Fecha Servicio', 'IPS', 'RED', 'rol_del_contratista','identificacion_contratista','Finalidad','Nombre Medico','Unidad Func','Sexo','programa'
         ]]
 
         produccion_filtrada = produccion_filtrada[produccion_filtrada['rol_del_contratista'].notna()]

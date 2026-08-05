@@ -218,7 +218,7 @@ def df_tipo_7(tipo_registro,nit, inicio_consecutivo, df, id_recurso):
             'tipo_registro': tipo_registro,
             'id_recurso': row['id_recurso'],
             'nit': nit,
-            'indicador': 'I',
+            'indicador': row['indicador'],
             'codigo_adminitarativo': '5',
             'numero_contrato': row['numero_contrato'],
             'fecha_acta': row['fecha'].date(),
@@ -241,11 +241,11 @@ def main():
     # 1
     'NI',
     # 2
-    '900091143',
+    '900145767',
     # 3
-    '2026-03-01',
+    '2026-06-30',
     # 4
-    '2026-03-31',
+    '2026-06-30',
     ]
 
     PROPIEDADES_TIPO_2 = [
@@ -280,9 +280,9 @@ def main():
         ]
     ]
 
-    url = 'activos/reporte_ser/RESOLUCION_873_TIPO_3_ABRIL_2026.xlsx'
-    ur_polisa = 'activos/polisa_873.xlsx'
-    url_flujo = 'activos/reporte_ser/RESOLUCION_873_TIPO_5_MAR_2026.xlsx'
+    url = 'activos/reporte_ser/RESOLUCION_873_TIPO_3_JUL_2026.xlsx'
+    ur_polisa = 'activos/polisa_873_DEL.xlsx'
+    url_flujo = 'activos/reporte_ser/RESOLUCION_873_TIPO_5_JUL_2026.xlsx'
     url_rendimiento = 'activos/rendimientos_873.xlsx'
 
 
@@ -293,7 +293,7 @@ def main():
 
     # Read the Excel file
 
-    df = pd.read_excel(url, engine='openpyxl',sheet_name='CARGAR')  # Ensure `openpyxl` is installed
+    df = pd.read_excel(url, engine='openpyxl')  # Ensure `openpyxl` is installed
     df_recurso_4 = pd.read_excel(ur_polisa)  # Ensure `openpyxl` is installed
     df_recurso_5 = pd.read_excel(url_flujo, engine='openpyxl',sheet_name="ARCHIVO_CARGAR_CORRECION")  # Ensure `openpyxl` is installed
     df_recurso_7 = pd.read_excel(url_rendimiento, engine='openpyxl')  # Ensure `openpyxl` is installed
@@ -343,7 +343,7 @@ def main():
     consolidado += codificar_formato(tipo_6) + '\n'
     consolidado += codificar_formato(tipo_7)
 
-    file_name = f"reportes/SER124DREC20260331NI000900091143{PROPIEDADES_TIPO_2[0][0]}.txt"
+    file_name = f"reportes/SER124DREC20260630NI000900091143{PROPIEDADES_TIPO_2[0][0]}.txt"
 
     # Guardar el archivo en la misma carpeta
     with open(file_name, 'w', encoding='utf-8') as f:

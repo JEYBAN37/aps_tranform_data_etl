@@ -7,9 +7,18 @@ import time
 def sobrescribir_hoja(sheet_id, sheet_name, df, client):
     # 1. Copia y limpieza inicial
     df = df.copy()
+    num_filas_necesarias = len(df) + 1  # +1 por los encabezados
+    num_columnas_necesarias = len(df.columns)
+    total_celdas = num_filas_necesarias * num_columnas_necesarias
+    if total_celdas > 10000000:
+        raise ValueError(
+            f"❌ Error: El DataFrame tiene {total_celdas:,} celdas, lo cual supera el límite de 10M de Google Sheets.")
+
     sheet = client.open_by_key(sheet_id).worksheet(sheet_name)
+
+    # 2. Limpieza y redimensión exacta y dinámica
     sheet.clear()
-    sheet.resize(rows=100000, cols=26)
+    sheet.resize(rows=num_filas_necesarias, cols=num_columnas_necesarias)
 
     # 2. Helper ultra-robusto para convertir celdas a strings
     def _cell_to_string(x):

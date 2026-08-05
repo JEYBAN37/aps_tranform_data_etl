@@ -124,9 +124,9 @@ def filtro_actividades(cursor,df_familia, db, df_personas,reporte,client,sheet_i
         lambda row: verificar_nuevas_caracterizaciones(row, df_familia), axis=1
     )
 
-    # df_actividades_consolidados['conteo_actualizaciones_ficha'] = df_actividades_consolidados.apply(
-    #     lambda row: verificar_actualizacion_ficha(row, df_familia,df_personas), axis=1
-    # )
+    df_actividades_consolidados['conteo_actualizaciones_ficha'] = df_actividades_consolidados.apply(
+        lambda row: verificar_actualizacion_ficha(row, df_familia,df_personas), axis=1
+    )
 #
     df_actividades_consolidados['conteo_plan_cuidado'] = df_actividades_consolidados.apply(
         lambda row: verificar_plan_cuidado(row, df_familia), axis=1
@@ -143,7 +143,7 @@ def filtro_actividades(cursor,df_familia, db, df_personas,reporte,client,sheet_i
     familia_A_Comparar = df_actividades_consolidados[df_actividades_consolidados['id_familia_plan'] == '79769']
 
 
-    colums = ['responsable_id', 'fecha','observacion_id','familia_id','sociambiental_id','juventudadultos_id','responsable_nombre','responsable_profesion', 'conteo_nuevas_caracterizaciones', 'conteo_plan_cuidado','id_familia_plan']
+    colums = ['responsable_id', 'fecha','observacion_id','familia_id','sociambiental_id','juventudadultos_id','responsable_nombre','responsable_profesion', 'conteo_nuevas_caracterizaciones', 'conteo_plan_cuidado','id_familia_plan','conteo_actualizaciones_ficha']
 
     # colums = ['responsable_id', 'fecha','observacion_id','familia_id','sociambiental_id','juventudadultos_id','responsable_nombre','responsable_profesion','conteo_plan_cuidado','id_familia_plan']
 
