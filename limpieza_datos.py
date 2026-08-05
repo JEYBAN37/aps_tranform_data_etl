@@ -113,6 +113,7 @@ def main():
 
     finally:
         cursor.close()
+        
         connection.close()
 
 

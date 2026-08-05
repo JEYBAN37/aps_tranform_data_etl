@@ -10,9 +10,9 @@ from credenciales import MYSQL_APS, MYSQL_REPLICA_PASSWORD, MYSQL_REPLICA_USER, 
 from export_aps_124 import limpiar_tildes
 from mysql_conector import ejecutar_consulta_mysql
 
-# 1|NI|900091143|2026-03-01|2026-03-31|260
+#1|NI|900145767|2026-06-30|2026-06-30|947
 def main():
-    ruta = "reportes/SER124DREC20260331NI000900091143ID2087325712.txt"
+    ruta = r"F:\APS AUTOMATIZACIONES\aps\reportes\SER124DREC20260630NI000900091143ID2087325712.txt"
 
     # Leer líneas
     with open(ruta, "r", encoding="utf-8") as f:
@@ -243,11 +243,22 @@ def convertir_to_json():
     with open(ruta_json, "w", encoding="utf-8") as f:
         json.dump(records, f, ensure_ascii=False, indent=2)
 
+def sumar_pagos():
+    ruta = "E:\PAGOS_EBS_PROGRAMA_OFICIAL (1).xlsx"
+    df_contratos = pd.read_excel(ruta, sheet_name="CONTRATOS")
+    df_pagos = pd.read_excel(ruta, sheet_name="REPORTADOS")
 
+    df_pagos_grouped = df_pagos.groupby('numero_contrato')['valor'].sum().reset_index()
+
+    df_contratos['valor_pagado'] = df_contratos['numero_contrato'].map(df_pagos_grouped.set_index('numero_contrato')['valor'])
+
+    df_contratos.to_excel("E:\PAGOS_EBS_PROGRAMA_OFICIAL_SUMADO.xlsx", index=False)
+    print(df_contratos[['numero_contrato', 'valor_pagado']])
 
 if __name__ == "__main__":
-    #main()
-    nombrar_responsables_archivo_aps()
+    #sumar_pagos()
+    main()
+    #nombrar_responsables_archivo_aps()
     #aps_cedular_ya_reportadas()
     #cargar_indicadores()
     #unir_csv_falla_coordenadas()
