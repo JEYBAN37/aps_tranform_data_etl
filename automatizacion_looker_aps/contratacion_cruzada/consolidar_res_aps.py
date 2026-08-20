@@ -5,6 +5,8 @@ import pandas as pd
 import unicodedata
 
 from automatizacion_looker_aps.contratacion_cruzada.extractores_texto import limpiar_numero_contrato
+from credenciales import URL_CONTRATACION_PLANTILLA
+
 
 def limpiar_tildes(texto):
     try :
@@ -137,8 +139,8 @@ def listar_contratos_bd():
     formato.to_excel("bases/contratos_cargar_reporte.xlsx", index=False)
 
 def calcular_capos_obtenidos():
-    contratos = pd.read_excel("bases/contratos_cargar_reporte.xlsx")
-    pagos_ajustados = pd.read_excel("bases/PAGOS_EBS.xlsx" , sheet_name="REPORTADOS")
+    contratos = pd.read_csv(URL_CONTRATACION_PLANTILLA)
+    pagos_ajustados = pd.read_csv("https://docs.google.com/spreadsheets/d/1WnG6EBin4IxEwhcg0aOtC0efh9k_fg7dWVXrV86ZUfY/export?format=csv")
 
     #total = pagos_ajustados["valor"].sum()
     #total_segun_contratos = contratos['pagado'].sum()
@@ -151,8 +153,21 @@ def calcular_capos_obtenidos():
     # agrupar por meses y sumar el valroi mensual segun cada rol
     df_pagos_con_rol["fecha_pago"] = pd.to_datetime(df_pagos_con_rol["fecha"], errors='coerce')
     df_pagos_con_rol["mes_pago"] = df_pagos_con_rol["fecha_pago"].dt.to_period('M')
-    df_pagos_con_rol["valor_mensual"] = df_pagos_con_rol["valor"].astype(float)
+
+    # 1. Quitar el signo de dólar de forma segura
+    df_pagos_con_rol["valor_mensual"] = df_pagos_con_rol["valor"].str.replace("$", "", regex=False)
+
+    # 2. Dividir por la coma y extraer el primer elemento (índice 0)
+    df_pagos_con_rol["primer_valor"] = (
+        df_pagos_con_rol["valor_mensual"]
+        .str.replace(".", "", regex=False)  # Eliminar comas
+        .str.split(",")
+        .str[0]
+        .str.strip()
+    ).astype(float)  # Convertir a float
+
     df_pagos_con_rol = df_pagos_con_rol[df_pagos_con_rol["id_recurso" ] == "ID2087325712"]
+
     _counts = df_pagos_con_rol.drop_duplicates(subset=['mes_pago', 'numero_contrato']).groupby(
         ['mes_pago', 'rol_del_contratista'])['numero_contrato'].nunique()
     df_pagos_con_rol['numero_contratos_pagados'] = df_pagos_con_rol.set_index(
@@ -160,13 +175,13 @@ def calcular_capos_obtenidos():
 
         # luego agrupar por meses y sumar el valor mensual segun cada rol
     df_completo = df_pagos_con_rol.groupby(['mes_pago', 'rol_del_contratista']).agg({
-        'valor_mensual': 'sum',
+        'primer_valor': 'sum',
         'numero_contratos_pagados': 'max'
     }).reset_index()
 
 
     print(df_completo.head())
-    suma = df_completo['valor_mensual'].sum()
+    suma = df_completo['primer_valor'].sum()
     df_completo.to_excel("bases/pagos_ajustados_consolidado_873.xlsx", index=False)
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ from limpieza_datos import extraer_distribucion_redes
 def indicadores_salud_publica():
     global cursor
 
-    RANGO_FECHA = datetime.strptime("2026-01-01", "%Y-%m-%d")
+    RANGO_FECHA = datetime.strptime("2025-12-01", "%Y-%m-%d")
 
 
     connection = mysql.connector.connect(
@@ -36,11 +36,14 @@ def indicadores_salud_publica():
         # Luego eliminamos las primeras 2 columnas si no las necesitas
         print(produccion.head())
 
+        #borrar duplicados por todas las columnas
+        produccion = produccion.drop_duplicates()
+        persona = produccion[produccion['Identificacion'] == '1085313336']
         cursor = connection.cursor()
         #responsables_ebs = cargar_responsables( cursor, DATABASE)
         #connection.commit()
 
-        personas_url = "F:/APS AUTOMATIZACIONES/reportes/2026-06-11/looker/cosolidado_personas_2026-06-11.csv"
+        personas_url = "F:/APS AUTOMATIZACIONES/reportes/2026-08-12/looker/cosolidado_personas_2026-08-12.csv"
         df_personas = pd.read_csv(personas_url)
         df_personas['doc_id'] = df_personas['doc_id'].astype(str).str.strip().str.split(".").str[0]
         df_personas['familia_id'] = df_personas['familia_id'].astype(str).str.strip().str.split(".").str[0]
@@ -56,6 +59,8 @@ def indicadores_salud_publica():
             df_contratacion['fecha_finalizacion'] >= RANGO_FECHA
             ]
 
+        df_contratacion_filtrada = df_contratacion_filtrada.drop_duplicates(subset=['identificacion_contratista'], keep='first')
+
 
         produccion['Ident Medico'] = produccion['Ident Medico'].astype(str).str.strip().str.split(".").str[0]
         produccion['Edad'] = produccion['Edad'].astype(str).str.strip().str.split(" ").str[0]
@@ -67,10 +72,13 @@ def indicadores_salud_publica():
             right_on='identificacion_contratista',
             how='left'
         )
+
+        persona = produccion_filtrada[produccion_filtrada['Identificacion'] == '1085313336']
+
         produccion_filtrada = produccion_filtrada[[
             'Identificacion', 'Tipo ID', 'Nombre Paciente', 'Dir Afil', 'Telefono',
             'Nombre Servicio', 'Cod Diag', 'Cod Diag Rel1', 'Cod Diag Rel2', 'Cod Diag Rel3',
-            'Edad', 'Fecha Servicio', 'IPS', 'RED', 'rol_del_contratista','identificacion_contratista','Finalidad','Nombre Medico','Unidad Func','Sexo','programa'
+            'Edad', 'Fecha Servicio', 'IPS', 'RED', 'rol_del_contratista','identificacion_contratista','Finalidad','Nombre Medico','Unidad Func','Sexo','programa','Num Factura','Orden Int'
         ]]
 
         produccion_filtrada = produccion_filtrada[produccion_filtrada['rol_del_contratista'].notna()]
@@ -86,9 +94,9 @@ def indicadores_salud_publica():
         )
 
         # 3. (Opcional) Si no quieres que te quede la columna 'doc_id' repetida, la puedes eliminar
-        produccion_x_familia = produccion_x_familia.drop(columns=['doc_id'])
+        #produccion_x_familia = produccion_x_familia.drop(columns=['doc_id'])
 
-        persona = produccion_filtrada[produccion_filtrada['identificacion_contratista'] == '1193458466']
+        persona = produccion_filtrada[produccion_filtrada['Identificacion'] == '1085313336']
 
 
         # diagnosticos_disponibles = produccion_filtrada['Cod Diag'].dropna().unique()
@@ -110,6 +118,8 @@ def indicadores_salud_publica():
         # agrupado_por_meses_y_conteo.columns = ['Mes', 'Cantidad Personas']
         produccion_x_familia = limpiar_formatos(produccion_x_familia, columnas_fecha=['Fecha Servicio'])
 
+        produccion_x_familia = produccion_x_familia.drop_duplicates()
+
         cargar_csv_a_bigquery(produccion_x_familia, table_id="datos_aps.atenciones_ebs", project_id="aps-project-478903",
                               )
 
@@ -125,7 +135,34 @@ def indicadores_salud_publica():
         cursor.close()
         connection.close()
 
+def indicadores_salud_publica_filtrada():
+    global cursor
 
+    RANGO_FECHA = datetime.strptime("2026-01-01", "%Y-%m-%d")
+
+    connection = mysql.connector.connect(
+        host=MYSQL_APS,
+        user=MYSQL_REPLICA_USER,
+        password=MYSQL_REPLICA_PASSWORD,
+        database=DATABASE_APS2025,
+        autocommit=False  # Disable autocommit
+    )
+
+    try:
+        url = "bases_downloads/reporte_unificado_2026.csv"
+        produccion = pd.read_csv(url)
+        print(produccion.head())
+
+        PERSONA = produccion[produccion['Nombre Medico'].str.contains('DIANA', na=False) & produccion['Especialidad'].str.contains('NUTRICION', na=False)]
+        PERSONA.to_excel("bases_downloads/persona_filtrada_nutricionista.xlsx", index=False)
+
+
+    except Exception as e:
+        print(f"Error en el proceso: {e}")
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
 
 def unir_reportes_facturacion():
     # una ruta abrir losa rchivo csv o xlsx y unirlos en un solo dataframe
@@ -162,4 +199,5 @@ def unir_reportes_facturacion():
 
 if __name__ == "__main__":
     #unir_reportes_facturacion()
-    indicadores_salud_publica()
+    #indicadores_salud_publica()
+    indicadores_salud_publica_filtrada()
