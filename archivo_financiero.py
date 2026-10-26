@@ -87,7 +87,7 @@ def df_tipo_3(tipo_registro, inicio_consecutivo, propiedades_tipo_3, df_personas
         'valor': f"{row['valor_contratado']}.00",
         'contratista_tipo_identificacion': row['contratista_tipo_identificacion'],
         'numero_identificacion': str(row['numero_identificacion']).split('.')[0] if pd.notna(row['numero_identificacion']) else '',
-        'nombre_contratista': limpiar_tildes(row['nombre_contratista']) if pd.notna(row['nombre_contratista']) and row['nombre_contratista'] != '' else '',
+        'nombre_contratista': limpiar_tildes(row['nombre_contratista']).upper() if pd.notna(row['nombre_contratista']) and row['nombre_contratista'] != '' else '',
         'tipo_doc_supervisor': row['tipo_doc_supervisor'],
         'numero_supervisor': str(row['numero_supervisor']).split('.')[0] if pd.notna(row['numero_supervisor']) else '',
         'nombre_supervisor': limpiar_tildes(row['nombre_supervisor']).upper() if pd.notna(row['nombre_supervisor']) else '',
@@ -241,7 +241,7 @@ def main():
     # 1
     'NI',
     # 2
-    '900145767',
+    '900091143',
     # 3
     '2026-06-30',
     # 4
@@ -250,7 +250,7 @@ def main():
 
     PROPIEDADES_TIPO_2 = [
     # 1
-        ['ID2087325712'], # RESOLUCION 873
+        ['ID2080126718'], # RESOLUCION 801
     # 2
         ['NA'],
     # 3
@@ -280,7 +280,7 @@ def main():
         ]
     ]
 
-    url = 'activos/reporte_ser/RESOLUCION_873_TIPO_3_JUL_2026.xlsx'
+    url = 'activos/reporte_ser/RESOLUCION_801_TIPO_3.xlsx'
     ur_polisa = 'activos/polisa_873_DEL.xlsx'
     url_flujo = 'activos/reporte_ser/RESOLUCION_873_TIPO_5_JUL_2026.xlsx'
     url_rendimiento = 'activos/rendimientos_873.xlsx'
@@ -343,7 +343,7 @@ def main():
     consolidado += codificar_formato(tipo_6) + '\n'
     consolidado += codificar_formato(tipo_7)
 
-    file_name = f"reportes/SER124DREC20260630NI000900091143{PROPIEDADES_TIPO_2[0][0]}.txt"
+    file_name = f"reportes/SER124DREC20260831NI000900091143{PROPIEDADES_TIPO_2[0][0]}.txt"
 
     # Guardar el archivo en la misma carpeta
     with open(file_name, 'w', encoding='utf-8') as f:

@@ -40,67 +40,79 @@ def forzar_diccionario(dato):
 
 
 def agregar_filas_intervenciones_validas(row, df_interveciones_validas):
-    # Usamos tu función para obtener la lista/diccionario del JSON
     registro_json = json_to_dict(row, 'actividaddesarrollar')
     print(row['familia_id'])
 
-    # Si tu función devuelve un dict único en lugar de una lista, lo metemos en una lista para el for
     if isinstance(registro_json, dict):
         registro_json = [registro_json]
 
     for situacion_priorizada in registro_json:
         print("Procesando fila con id_familia_plan:", situacion_priorizada)
 
-        # Corregido: .loc[len(...)] inserta los datos en el DataFrame acumulador externo
+        id_responsable = situacion_priorizada.get('responsableEBS', '')
+
+        print("Situación priorizada:", situacion_priorizada)
+
+        # Se inserta la fila asegurando que todas las llaves existan en las columnas del DataFrame
         df_interveciones_validas.loc[len(df_interveciones_validas)] = {
             'id_familia_plan': row['familia_id'],
-            'id_plan_cuidado': row['observacion_id'] if 'observacion_id' in row else '',
-            # Corregido: Uso de .get() por si acaso o corchetes para Series de Pandas
-            'id_sociambiental': row['sociambiental_id'] if 'sociambiental_id' in row else '',
+            'id_plan_cuidado': row.get('observacion_id', ''),
+            'id_sociambiental': row.get('sociambiental_id', ''),
             'situacion_priorizada': situacion_priorizada.get('situacionesPriorizadas', ''),
-            # Cambiado a la llave del JSON
             'estado': situacion_priorizada.get('estado', ''),
             'fecha_compromiso': situacion_priorizada.get('fechaCompromiso', ''),
             'fecha_seguimiento': situacion_priorizada.get('fechaSeguimiento', ''),
             'objetivo': str(situacion_priorizada.get('objetivoCortoPlazo', '')),
             'resultado': str(situacion_priorizada.get('resultadosEsperados', '')),
-            # Corregido: 'responsableFamilia' viene de la variable interna del JSON, no de la fila
             'id_persona': situacion_priorizada.get('responsableFamilia', ''),
+            'id_responsable': id_responsable  # <--- Esta columna faltaba en el esquema inicial
         }
 
 
-def verificar_indicadores(df_intervenciones,sheet_id,client):
-    # Descartar filas con NaN en la columna crítica
+def verificar_indicadores(df_intervenciones, sheet_id, client, df_responsables):
     df_validas = df_intervenciones.dropna(subset=['actividaddesarrollar']).copy()
 
-    # Estructura del DataFrame donde se van a ir guardando/acumulando los registros desglosados
+    # 1. CORRECCIÓN: Definir TODAS las columnas del DataFrame objetivo (incluyendo id_responsable)
     df_interveciones_validas = pd.DataFrame(columns=[
-        'id_familia_plan', 'id_sociambiental', 'situacion_priorizada',
-        'estado', 'fecha_compromiso', 'fecha_seguimiento', 'objetivo',
-        'resultado', 'id_persona','id_plan_cuidado'
+        'id_familia_plan', 'id_plan_cuidado', 'id_sociambiental',
+        'situacion_priorizada', 'estado', 'fecha_compromiso',
+        'fecha_seguimiento', 'objetivo', 'resultado',
+        'id_persona', 'id_responsable'  # <--- Agregada aquí
     ])
 
-    # Se ejecuta el apply pasando el DataFrame acumulador como argumento extra
+    # Aplicar la función para poblar el DataFrame
     df_validas.apply(
         lambda row: agregar_filas_intervenciones_validas(row, df_interveciones_validas),
         axis=1
     )
 
-    df_interveciones_validas['resultado'] = df_interveciones_validas['resultado'].apply(
-        lambda x: x.replace(',', '$') if isinstance(x, str) else x
-    ).fillna(0)
+    # Limpieza de textos en columnas 'resultado' y 'objetivo'
+    for col in ['resultado', 'objetivo']:
+        df_interveciones_validas[col] = (
+            df_interveciones_validas[col]
+            .astype(str)
+            .str.replace(',', '$', regex=False)
+            .str.replace(r'[\[\]"]', '', regex=True)
+            .str.strip()
+        )
 
-    df_interveciones_validas['resultado'] = df_interveciones_validas['resultado'].apply(
-        lambda x: x.replace('[', '').replace(']', '').replace('"','').strip() if isinstance(x, str) else x
-    ).fillna(0)
+    # 1. Asegurar que las llaves tengan el mismo tipo de dato numérico
+    # errors='coerce' convierte valores inválidos/vacíos a NaN en lugar de romper el código
+    df_interveciones_validas['id_responsable'] = pd.to_numeric(
+        df_interveciones_validas['id_responsable'], errors='coerce'
+    ).astype('Int64')  # 'Int64' con I mayúscula permite manejar nulos de forma segura
 
-    df_interveciones_validas['objetivo'] = df_interveciones_validas['objetivo'].apply(
-        lambda x: x.replace(',', '$') if isinstance(x, str) else x
-    ).fillna(0)
+    df_responsables['id'] = pd.to_numeric(
+        df_responsables['id'], errors='coerce'
+    ).astype('Int64')
 
-    df_interveciones_validas['objetivo'] = df_interveciones_validas['objetivo'].apply(
-        lambda x: x.replace('[', '').replace(']', '').replace('"', '').strip() if isinstance(x, str) else x
-    ).fillna(0)
+    # 2. Ahora el merge funcionará sin errores de tipo
+    df_interveciones_validas = df_interveciones_validas.merge(
+        df_responsables[['id', 'nombres']],
+        left_on='id_responsable',
+        right_on='id',
+        how='left'
+    )
 
     # Retornamos el DataFrame acumulador que ya se llenó con el proceso de arriba
     cargar_csv_a_bigquery(df_interveciones_validas, table_id="datos_aps.situaciones_priorizadas", project_id="aps-project-478903",

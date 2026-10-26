@@ -538,8 +538,8 @@ def unificar_contratos():
         print(f"  ❌ Errores   : {len(resultados['errores'])}")
 
 
-DPI_MAESTRO = 90 # mínimo legible para documentos escaneados
-JPEG_MAESTRO = 80  # agresivo pero texto aún legible
+DPI_MAESTRO = 67 # mínimo legible para documentos escaneados
+JPEG_MAESTRO = 70  # agresivo pero texto aún legible
 
 
 def optimizar_pdf_agresivo(ruta_entrada: str, ruta_salida: str) -> dict:
@@ -690,8 +690,8 @@ def crear_pdf_maestro_agreesivo(carpeta_base: str, nombre_maestro: str = "TODOS_
 
     print(f"  📊 Optimizado: {resultado['final_mb']}MB (ahorro {resultado['ahorro_pct']}%)")
 
-    if os.path.exists(ruta_sin_opt):
-        os.remove(ruta_sin_opt)
+    #if os.path.exists(ruta_sin_opt):
+       # os.remove(ruta_sin_opt)
 
     return ruta_maestro
 

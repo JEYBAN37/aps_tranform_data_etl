@@ -108,13 +108,15 @@ def filtro_actividades(cursor,df_familia, db, df_personas,reporte,client,sheet_i
                 str).str.strip().str.replace(r'[^\w\s]', '', regex=True)
 
 
-    cols_to_clean = ['observacion_id','familia_id','sociambiental_id','juventudadultos_id','responsable_id']
+    cols_to_clean = ['observacion_id','familia_id','sociambiental_id','juventudadultos_id']
     for col in cols_to_clean:
         df_actividades_consolidados = limpiar_id(df_actividades_consolidados, col)
 
     df_actividades_consolidados['fecha'] = pd.to_datetime(df_actividades_consolidados['fecha'],
                                                        errors='coerce').dt.strftime('%Y-%m-%d').fillna('').astype(
         str)
+
+    # df_actividades_consolidados = df_actividades_consolidados.merge(responsables_ebs[['id', 'ebs']], left_on='responsable_id', right_on='id', how='left')
 
 
     df_familia['fecha'] = pd.to_datetime(df_familia['fecha'], errors='coerce').dt.strftime('%Y-%m-%d').fillna('').astype(
@@ -196,6 +198,8 @@ def filtro_actividades(cursor,df_familia, db, df_personas,reporte,client,sheet_i
     df_actividades_consolidados['db_anterior'] = df_actividades_consolidados.apply(
         lambda row: extrer_variable_familia(row, df_familia, variable='db'), axis=1
     )
+
+    #df_actividades_consolidados['ebs'] = df_actividades_consolidados.merge(responsables_ebs[['id', 'nombre', 'profesion']], left_on='responsable_id', right_on='id', how='left')[['nombre', 'profesion']]
 
     cargar_actividades(df_actividades_consolidados, reporte, sheet_id, client)
 

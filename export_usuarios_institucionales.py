@@ -2,6 +2,8 @@ from datetime import datetime
 from io import BytesIO
 import pandas as pd
 
+from automatizacion_looker_aps.contratacion_cruzada.consolidar_res_aps import limpiar_tildes
+
 
 def main():
 
@@ -43,7 +45,7 @@ def main():
     # Cargar CV
 
     # URL of the Excel file
-    url = 'https://docs.google.com/spreadsheets/d/1RqbfsgJc9N-qOJfmveLQTm1GNwwbO-0S/export?format=xlsx&gid=749204967'
+    url = 'https://docs.google.com/spreadsheets/d/1VC27m3Ujuw5gDFE1S2oRYv1vIKZS5UZuiHmNNFB8IK0/export?format=xlsx&gid=562222654'
 
     # Read the Excel file
     df = pd.read_excel(url, engine='openpyxl' )  # Ensure `openpyxl` is installed
@@ -53,63 +55,63 @@ def main():
         df[col] = df[col].astype(str).str.normalize('NFKD')
 
     df = df[
-        df['N° CEDULA'].notnull() & (df['N° CEDULA'].astype(str).str.strip() != '')
+        df['Número de cédula'].notnull() & (df['Número de cédula'].astype(str).str.strip() != '')
     ].copy()
     # Remove trailing `.0` from values that came from numeric columns (e.g. '12345.0') and strip spaces
-    df['N° CEDULA'] = df['N° CEDULA'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+    df['Número de cédula'] = df['Número de cédula'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
-    df = df[df['N° CONTRATO'].notnull() & (df['N° CONTRATO'] != '')].copy()
+    df = df[df['Número de contrato'].notnull() & (df['Número de contrato'] != '')].copy()
 
-    df = df[df['TELEFONO'].notnull() & (df['TELEFONO'] != '') & (df['TELEFONO'] != '#N/D')].copy()
+    df = df[df['Numero de telefono'].notnull() & (df['Numero de telefono'] != '') & (df['Numero de telefono'] != '#N/D')].copy()
 
-    print(df['N° CEDULA'])
+    print(df['Numero de telefono'])
+    #
+    # CEDULAS_QUE_NO_SE_REPORTA = [
+    #     '1081052746',
+    #     '1081053820',
+    #     '1084224968',
+    #     '1085268450',
+    #     '1085275445',
+    #     '1085281002',
+    #     '1085286725',
+    #     '1085287296',
+    #     '1085312669',
+    #     '1085313195',
+    #     '1085317833',
+    #     '1085325325',
+    #     '1085327836',
+    #     '1085331558',
+    #     '1085335069',
+    #     '1086018841',
+    #     '1086222689',
+    #     '1086222977',
+    #     '1086361622',
+    #     '1088216350',
+    #     '1088799080',
+    #     '1089975658',
+    #     '1193474724',
+    #     '1233192708',
+    #     '27436186',
+    #     '27549932',
+    #     '5930737',
+    #     '59312779',
+    #     '59312865',
+    #     '59815593',
+    #     '59830040',
+    #     '59833899',
+    #     '87069979',
+    #     '1004235479'
+    #
+    # ]
+    #
+    # # crea dtaframe
+    #
+    # df_no_reportados = pd.DataFrame(CEDULAS_QUE_NO_SE_REPORTA, columns=['Número de cédula'])
+    # df_no_inscirtos = df[df['Número de cédula'].astype(str).isin(df_no_reportados['Número de cédula'])].copy()
 
-    CEDULAS_QUE_NO_SE_REPORTA = [
-        '1081052746',
-        '1081053820',
-        '1084224968',
-        '1085268450',
-        '1085275445',
-        '1085281002',
-        '1085286725',
-        '1085287296',
-        '1085312669',
-        '1085313195',
-        '1085317833',
-        '1085325325',
-        '1085327836',
-        '1085331558',
-        '1085335069',
-        '1086018841',
-        '1086222689',
-        '1086222977',
-        '1086361622',
-        '1088216350',
-        '1088799080',
-        '1089975658',
-        '1193474724',
-        '1233192708',
-        '27436186',
-        '27549932',
-        '5930737',
-        '59312779',
-        '59312865',
-        '59815593',
-        '59830040',
-        '59833899',
-        '87069979',
-        '1004235479'
+    # df = df[~df['Número de cédula'].astype(str).isin(CEDULAS_QUE_NO_SE_REPORTA)].copy()
 
-    ]
-
-    # crea dtaframe
-
-    df_no_reportados = pd.DataFrame(CEDULAS_QUE_NO_SE_REPORTA, columns=['N° CEDULA'])
-    df_no_inscirtos = df[df['N° CEDULA'].astype(str).isin(df_no_reportados['N° CEDULA'])].copy()
-
-    df = df[~df['N° CEDULA'].astype(str).isin(CEDULAS_QUE_NO_SE_REPORTA)].copy()
-
-    # df = df[~df['N° CEDULA'].astype(str).isin(df_no_reportados['N° CEDULA'])].copy()
+    # df = df[~df['Número de cédula'].astype(str).isin(df_no_reportados['Número de cédula'])].copy()
 
     tipo_2 = registros_tipo_2(TIPO_REGISTROS[1], df)
     tipo_3 = registros_tipo_3(TIPO_REGISTROS[2], df , len(tipo_2))
@@ -121,7 +123,7 @@ def main():
 
     file_name = f"txt/SEG500USIN{FE_CORTE.replace('-','')}NI000900091143.txt"
 
-    df_no_inscirtos.to_csv('reportes/usuarios_no_reportados.csv')
+    #df_no_inscirtos.to_csv('reportes/usuarios_no_reportados.csv')
 
     # Guardar el archivo en la misma carpeta
     with open(file_name, 'w', encoding='utf-8') as f:
@@ -177,7 +179,7 @@ def extraer_primer_apellido(nombre_completo):
 def registros_tipo_2(tipo_registro, df_usuarios):
     fuente = df_usuarios.copy()
 
-    limpiar_nombre = fuente['NOMBRE'].astype(str).str.replace(r'[^a-zA-Z\s]', '', regex=True)
+    limpiar_nombre = fuente['Nombre completo'].astype(str).str.replace(r'[^a-zA-Z\s]', '', regex=True)
 
 
     # limpiar_nombre = fuente['NOMBRE'].astype(str).str.replace(r'[^a-zA-ZñÑ\s]', '', regex=True)
@@ -185,12 +187,12 @@ def registros_tipo_2(tipo_registro, df_usuarios):
     formato = pd.DataFrame({
         'tipo_registro': tipo_registro,
         'tipo_identificacion_identidad': 'CC',
-        'numero_identificacion': fuente['N° CEDULA'].astype(str).str.split('.').str[0],
+        'numero_identificacion': fuente['Número de cédula'].astype(str).str.split('.').str[0],
         'primer_nombre': limpiar_nombre.str.split().str[0].str.upper(),
         'primer_apellido': limpiar_nombre.apply(extraer_primer_apellido).str.upper(),
         'indicador_vinculacion': 'V',
-        'telefono': fuente['TELEFONO'].astype(str).str.replace(r'[^0-9]', '', regex=True),
-        'cargo': fuente['PERFIL'].astype(str).str.upper(),
+        'telefono': fuente['Numero de telefono'].astype(str).str.replace(r'[^0-9]', '', regex=True),
+        'cargo': fuente['Perfil / Rol'].str.upper().str.replace(r'/A', '', regex=True).apply(limpiar_tildes),
         'contrato': '0',
         'fin':'2026-03-31',
         'correo_electronico': 'pastosaludeseaps@gmail.com'
@@ -206,7 +208,7 @@ def registros_tipo_3(tipo_registro, df_usuarios , inicio_consecutivo):
     formato = pd.DataFrame({
         'tipo_registro': tipo_registro,
         'tipo_identificacion_identidad': 'CC',
-        'numero_identificacion': fuente['N° CEDULA'].astype(str).str.split('.').str[0],
+        'numero_identificacion': fuente['Número de cédula'].astype(str).str.split('.').str[0],
         'aplicacion': '45',
         'indicador': 'A',
         'perfil': '1274',

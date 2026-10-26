@@ -6,4 +6,5 @@ def query_intervenciones(database):
         u.profesion AS responsable_profesion
     FROM {database}.interveciones i
     LEFT JOIN {database}.responsables u ON i.responsable_id = u.id
+    WHERE i.fecha >= '2026-08-20'
     """

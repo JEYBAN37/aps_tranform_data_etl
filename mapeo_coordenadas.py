@@ -27,9 +27,7 @@ def main():
         # Agrega aquí todos los territorios que necesites renderizar en el mismo mapa
         # =========================================================================
         territorios_a_procesar = [
-            {'name': 'T71', 'mc': 'Territorio15.1', 'nm': '15.1'},
-            {'name': 'T51', 'mc': 'Territorio15.2', 'nm': '15.2'},
-            {'name': 'T69', 'mc': 'Territorio15.3', 'nm': '15.3'},
+            {"name": "T61", "mc": "Territorio25.1", "nm": "25.1"},
         ]
 
         # Extraemos los nombres de territorios para la consulta SQL dinámica IN (...)
@@ -193,4 +191,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+   main()
+

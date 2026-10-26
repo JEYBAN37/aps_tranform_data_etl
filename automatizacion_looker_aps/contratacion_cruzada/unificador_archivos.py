@@ -236,10 +236,20 @@ if __name__ == "__main__":
     #verficar_en_contratos()
     #unificar_archivos()
     # renombrar_orden_nombre_archivos(r'H:\APS RES 873 JULIO\RESOLUCION 873 2025 - 2026\3. Contratos o actos administrativos formalizados para la ejecución de los recursos\contrato_Res_900_1')
-    crear_pdf_maestro_agreesivo(carpeta_base=r'H:\APS RES 873 JULIO\RESOLUCION 873 2025 - 2026\5. Actas de ejecución de los recursos parciales y finales suscritas por el supervisor o interventor. (Acta de pago mensual por talento humano, transporte)\5.1\ACTAS',
-                                codicion_especifica=condiconal_es_acta_valida,
-                                nombre_maestro="SER124SREC20260630NI000900091143ID2087325712D05.pdf",
-                                nombre_a_unificar="PAGO", contratos_opcion=False)
+    #     crear_pdf_maestro_agreesivo(carpeta_base=r'H:\APS RES 873 JULIO\RESOLUCION 873 2025 - 2026\5. Actas de ejecución de los recursos parciales y finales suscritas por el supervisor o interventor. (Acta de pago mensual por talento humano, transporte)\5.1\ACTAS',
+    #                                 codicion_especifica=condiconal_es_acta_valida,
+    #                                 nombre_maestro="SER124SREC20260630NI000900091143ID2087325712D05.pdf",
+    #                                 nombre_a_unificar="PAGO", contratos_opcion=False)
+
+    # crear_pdf_maestro_agreesivo(carpeta_base=r'D:\1893\informes',
+    #
+    #                             nombre_maestro="SER124SREC20260331NI00090091143ID2189325604D07.pdf",
+    #                             nombre_a_unificar="ANEXO", contratos_opcion=False)
+
+    crear_pdf_maestro_agreesivo(carpeta_base=r'G:\APS\CONTRATACION\BLOQUE_1',
+                                nombre_maestro="SER124SREC20260930NI000900091143ID2087325712D03.pdf",
+                                nombre_a_unificar="ANEXO", contratos_opcion=False)
+
 
 
 # PRIMERO DESCARGAR SIA DESPUES DIVIDIR TAMAAÑO

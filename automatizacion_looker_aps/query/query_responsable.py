@@ -4,6 +4,7 @@ def query_responsables(database):
        r.id,
        r.nombres,
        r.numero,
-       r.contrato
+       r.contrato,
+       r.ebs
     FROM {database}.responsables r
     """

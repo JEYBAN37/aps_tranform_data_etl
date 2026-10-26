@@ -99,22 +99,22 @@ def cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id)
     df_personas_consolidados['reporte_fecha'] = FE_REPORTE
 
 
-    asegurador_filtro = (('Emssanar', 'liderebs@emssanareps.co'),
-                         ('Mallamas','gestionensalud@mallamaseps.com'),
-                         ('Sanitas','michamorro@epssanitas.com'),
-                         ('PROINSALUD','fbolanos@fomag.gov.co'),
-                         ('Fomac','fbolanos@fomag.gov.co'),
-                         ('Famisanar','aachicanoy@famisanar.com.co'),
-                         ('FAMISANAR', 'aachicanoy@famisanar.com.co'),
-                         ('Famissanar', 'aachicanoy@famisanar.com.co'),
-                         ('Nueva EPS','dianariverarosero@gmail.com')
+    asegurador_filtro = (('Emssanar', 'pastosaludeseaps@gmail.com'),
+                         ('Mallamas','pastosaludeseaps@gmail.com'),
+                         ('Sanitas','pastosaludeseaps@gmail.com'),
+                         ('PROINSALUD','pastosaludeseaps@gmail.com'),
+                         ('Fomac','pastosaludeseaps@gmail.como'),
+                         ('Famisanar','pastosaludeseaps@gmail.com'),
+                         ('FAMISANAR', 'pastosaludeseaps@gmail.com'),
+                         ('Famissanar', 'pastosaludeseaps@gmail.com'),
+                         ('Nueva EPS','pastosaludeseaps@gmail.com')
                          )
 
     # poner coluna correo_aseguradora_correspondiente con el correo correspondiente a cada aseguradora a las otras ponles en blanco
     df_personas_consolidados['correo_aseguradora_correspondiente'] = df_personas_consolidados['aseguradora'].apply(lambda x: dict(asegurador_f or asegurador_f in asegurador_filtro for asegurador_f in asegurador_filtro if asegurador_f[0] == x).get(x, ''))
 
     df_personas_consolidados['reporte_fecha'] = FE_REPORTE
-    if FE_REPORTE:
+    if not FE_REPORTE:
         df_personas_consolidados.to_csv(
             F'../reportes/{FE_REPORTE}/looker/cosolidado_personas_{FE_REPORTE}.csv')
 

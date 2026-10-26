@@ -14,6 +14,7 @@ from db_dtypes.pandas_backports import nanall
 from credenciales import DRIVER_MYSQL, MYSQL_REPLICA_USER, MYSQL_APS, DRIVER_PATH, MYSQL_REPLICA_PASSWORD, \
     DATABASE_APS2024, DATABASE_APS2025, URL_CONTRATACION_PLANTILLA
 from export_usuarios_institucionales import codificar_formato
+
 from mysql_conector import ejecutar_consulta_mysql
 from propiedades_aps124 import DISCAPACIDAD, ANIMALES_PERMITIDO, NIVEL_ESTUDIO, ETNIA, AFILIACION, \
     ENFERMEDADES_CRONICAS, TIPO_REGISTROS, PROPIEDADES_TIPO_2, PROPIEDADES_TIPO_1, FECHA_INICIAL, \

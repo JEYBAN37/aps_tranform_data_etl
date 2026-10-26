@@ -18,7 +18,7 @@ from limpieza_datos import extraer_distribucion_redes
 def indicadores_salud_publica():
     global cursor
 
-    RANGO_FECHA = datetime.strptime("2025-12-01", "%Y-%m-%d")
+    RANGO_FECHA = datetime.strptime("2026-10-01", "%Y-%m-%d")
 
 
     connection = mysql.connector.connect(
@@ -33,6 +33,8 @@ def indicadores_salud_publica():
 
         url = "bases_downloads/reporte_unificado_2026.csv"
         produccion = pd.read_csv(url)
+
+        # produccion = pd.read_excel(r"E:\Informe de Facturacion Servicio Plan Unidad (9).xlsx", skiprows=2, dtype=str)
         # Luego eliminamos las primeras 2 columnas si no las necesitas
         print(produccion.head())
 
@@ -43,7 +45,7 @@ def indicadores_salud_publica():
         #responsables_ebs = cargar_responsables( cursor, DATABASE)
         #connection.commit()
 
-        personas_url = "F:/APS AUTOMATIZACIONES/reportes/2026-08-12/looker/cosolidado_personas_2026-08-12.csv"
+        personas_url = "F:/APS AUTOMATIZACIONES/reportes/2026-10-19/looker/cosolidado_personas_2026-10-19.csv"
         df_personas = pd.read_csv(personas_url)
         df_personas['doc_id'] = df_personas['doc_id'].astype(str).str.strip().str.split(".").str[0]
         df_personas['familia_id'] = df_personas['familia_id'].astype(str).str.strip().str.split(".").str[0]
@@ -53,6 +55,8 @@ def indicadores_salud_publica():
 
         df_contratacion['identificacion_contratista'] = df_contratacion['identificacion_contratista'].astype(str).str.strip().str.split(".").str[0]
         df_contratacion['fecha_finalizacion'] = pd.to_datetime(df_contratacion['fecha_finalizacion'], format='%d/%m/%Y',
+                                                               errors='coerce')
+        df_contratacion['fecha_inicio'] = pd.to_datetime(df_contratacion['fecha_inicio'], format='%d/%m/%Y',
                                                                errors='coerce')
 
         df_contratacion_filtrada = df_contratacion[
@@ -78,14 +82,30 @@ def indicadores_salud_publica():
         produccion_filtrada = produccion_filtrada[[
             'Identificacion', 'Tipo ID', 'Nombre Paciente', 'Dir Afil', 'Telefono',
             'Nombre Servicio', 'Cod Diag', 'Cod Diag Rel1', 'Cod Diag Rel2', 'Cod Diag Rel3',
-            'Edad', 'Fecha Servicio', 'IPS', 'RED', 'rol_del_contratista','identificacion_contratista','Finalidad','Nombre Medico','Unidad Func','Sexo','programa','Num Factura','Orden Int'
+            'Edad', 'Fecha Servicio', 'IPS', 'RED', 'rol_del_contratista','identificacion_contratista','Finalidad','Nombre Medico','Unidad Func','Sexo','programa','Num Factura','Orden Int','Especialidad','Cod Proce','Carnet'
         ]]
 
         produccion_filtrada = produccion_filtrada[produccion_filtrada['rol_del_contratista'].notna()]
 
-        df_personas_unico = df_personas[['doc_id', 'familia_id']].drop_duplicates(subset=['doc_id'], keep='first')
+        # 1. Asegurar limpieza idéntica en ambos lados del merge
+        produccion_filtrada['Identificacion'] = \
+        produccion_filtrada['Identificacion'].astype(str).str.strip().str.split(".").str[0]
 
-        # 2. Hacemos el merge con este nuevo dataframe limpio
+        df_personas['doc_id'] = df_personas['doc_id'].astype(str).str.strip().str.split(".").str[0]
+        df_personas['familia_id'] = df_personas['familia_id'].astype(str).str.strip().str.split(".").str[0]
+
+        # Si por alguna razón la columna familia_id ya venía en produccion_filtrada, la eliminamos para evitar conflictos
+        if 'familia_id' in produccion_filtrada.columns:
+            produccion_filtrada = produccion_filtrada.drop(columns=['familia_id'])
+        if 'territorio' in produccion_filtrada.columns:
+            produccion_filtrada = produccion_filtrada.drop(columns=['territorio'])
+        if 'microterritorio' in produccion_filtrada.columns:
+            produccion_filtrada = produccion_filtrada.drop(columns=['microterritorio'])
+
+        df_personas_unico = df_personas[['doc_id', 'familia_id', 'territorio', 'microterritorio']].drop_duplicates(
+            subset=['doc_id'], keep='first')
+
+        # 2. Hacemos el merge asegurando que no queden columnas duplicadas 'doc_id'
         produccion_x_familia = produccion_filtrada.merge(
             df_personas_unico,
             left_on='Identificacion',
@@ -93,11 +113,31 @@ def indicadores_salud_publica():
             how='left'
         )
 
+        # 3. Eliminar la columna auxiliar 'doc_id' que sobra del merge
+        if 'doc_id' in produccion_x_familia.columns:
+            produccion_x_familia = produccion_x_familia.drop(columns=['doc_id'])
+
+        # 4. DIAGNÓSTICO RÁPIDO: Imprimir cuántos registros se quedaron sin familia_id
+        nulos_familia = produccion_x_familia['familia_id'].isna().sum()
+        total_filas = len(produccion_x_familia)
+        print(f"Registros con familia encontrada: {total_filas - nulos_familia} de {total_filas}")
+
+
         # 3. (Opcional) Si no quieres que te quede la columna 'doc_id' repetida, la puedes eliminar
         #produccion_x_familia = produccion_x_familia.drop(columns=['doc_id'])
 
-        persona = produccion_filtrada[produccion_filtrada['Identificacion'] == '1085313336']
+        # 1. Asegurar que la columna sea de tipo datetime
+        produccion_x_familia['Fecha Servicio'] = pd.to_datetime(produccion_x_familia['Fecha Servicio'])
 
+        # 2. Asegurar que RANGO_FECHA sea un objeto datetime (si no lo es ya)
+        rango_fecha_dt = pd.to_datetime(RANGO_FECHA)
+        fecha_limite = pd.to_datetime("2026-08-31")
+
+        # 3. Aplicar el filtro con los paréntesis correspondientes en cada condición
+        # produccion_x_familia = produccion_x_familia[
+        #     (produccion_x_familia['Fecha Servicio'] >= rango_fecha_dt) &
+        #     (produccion_x_familia['Fecha Servicio'] <= fecha_limite)
+        #     ]
 
         # diagnosticos_disponibles = produccion_filtrada['Cod Diag'].dropna().unique()
         # servicios_disponibles = produccion_filtrada['Nombre Servicio'].dropna().unique()
@@ -121,7 +161,9 @@ def indicadores_salud_publica():
         produccion_x_familia = produccion_x_familia.drop_duplicates()
 
         cargar_csv_a_bigquery(produccion_x_familia, table_id="datos_aps.atenciones_ebs", project_id="aps-project-478903",
-                              )
+                             )
+
+        produccion_x_familia.to_csv("bases_downloads/produccion_filtrada_2026_EBS_agosto.csv", index=False)
 
         print(f"Filtrado por contratacion: {len(produccion_x_familia)} filas")
 
@@ -199,5 +241,5 @@ def unir_reportes_facturacion():
 
 if __name__ == "__main__":
     #unir_reportes_facturacion()
-    #indicadores_salud_publica()
-    indicadores_salud_publica_filtrada()
+    indicadores_salud_publica()
+    #indicadores_salud_publica_filtrada()

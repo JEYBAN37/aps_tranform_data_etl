@@ -11,8 +11,9 @@ from export_aps_124 import limpiar_tildes
 from mysql_conector import ejecutar_consulta_mysql
 
 #1|NI|900145767|2026-06-30|2026-06-30|947
+# 1|NI|900091143|2026-10-05|216|EMPRESA SOCIAL DEL ESTADO PASTO SALUD ESE||CC|79453251|DIEGO|MORALES|CC|79453251|DIEGO|MORALES|WEBMASTER@PASTOSALUDESE.GOV.CO
 def main():
-    ruta = r"F:\APS AUTOMATIZACIONES\aps\reportes\SER124DREC20260630NI000900091143ID2087325712.txt"
+    ruta = r"C:\Users\Esteban Getial\Downloads\SEG500USIN20261005NI000900091143.txt"
 
     # Leer líneas
     with open(ruta, "r", encoding="utf-8") as f:
@@ -39,7 +40,7 @@ def main():
 
 
 def aps_cedular_ya_reportadas():
-    ruta = "E:\APS124CCFP20251208NI000900091143.txt"
+    ruta = "F:\APS AUTOMATIZACIONES\aps\reportes\SER124DREC20260831NI000900091143ID2177823635.txt"
 
     # Leer líneas
     with open(ruta, "r", encoding="utf-8") as f:
@@ -176,9 +177,6 @@ def cargar_indicadores():
         connection.close()
 
 
-
-
-
 def unir_csv_falla_coordenadas ():
     ruta = "reportes/2025-12-05/fallas_coordenadas"
     df_consolidado = pd.DataFrame()
@@ -255,8 +253,64 @@ def sumar_pagos():
     df_contratos.to_excel("E:\PAGOS_EBS_PROGRAMA_OFICIAL_SUMADO.xlsx", index=False)
     print(df_contratos[['numero_contrato', 'valor_pagado']])
 
+def quitar_seg_personas():
+    ruta = r"C:\Users\Esteban Getial\Downloads\SEG500USIN20260929NI000900091143.txt"
+
+    cedulas = {
+        "1004133521", "1004189791", "1004236551", "1004535163", "1007520367",
+        "1010104644", "1073323554", "1080044066", "1080048173", "1081273836",
+        "1085250370", "1085256711", "1085265622", "1085283127", "1085325325",
+        "1085333467", "1085347147", "1086222689", "1088738533", "1088799080",
+        "1131085218", "1193255381", "1233192708", "12974849", "27088141",
+        "27097289", "27282232", "27549932", "30722194", "36954407",
+        "5930737", "59312865", "59833899", "98417473"
+    }
+
+    # POSICIONES DE COLUMNAS EN EL ARCHIVO (Basado en base 0):
+    INDICE_CONSECUTIVO = 1  # Columna donde va el número de registro (1, 2, 3...)
+    INDICE_CEDULA = 3  # Columna donde está el número de documento/cédula
+
+    with open(ruta, "r", encoding="utf-8") as f:
+        lineas = f.readlines()
+
+    nuevas_lineas = []
+    contador = 1
+    eliminadas = 0
+
+    for linea in lineas:
+        linea_limpia = linea.strip()
+        if not linea_limpia:
+            continue
+
+        partes = linea_limpia.split("|")
+
+        # 1. EVALUAR SI SE ELIMINA LA FILA COMPLETA
+        if len(partes) > INDICE_CEDULA:
+            cedula_actual = partes[INDICE_CEDULA].strip()
+
+            if cedula_actual in cedulas:
+                eliminadas += 1
+                continue  # Omitir toda la fila de la salida
+
+        # 2. SI LA FILA PERMANECE, RENUMERAR EL CONSECUTIVO
+        if len(partes) > INDICE_CONSECUTIVO:
+            partes[INDICE_CONSECUTIVO] = str(contador)
+            contador += 1
+
+        # Reconstruir la fila original intacta con el nuevo consecutivo
+        nuevas_lineas.append("|".join(partes) + "\n")
+
+    # Guardar cambios
+    with open(ruta, "w", encoding="utf-8") as f:
+        f.writelines(nuevas_lineas)
+
+    print(f"Proceso completado.")
+    print(f"Filas eliminadas completamente: {eliminadas}")
+    print(f"Filas reescritas y renumeradas: {len(nuevas_lineas)}")
+
 if __name__ == "__main__":
     #sumar_pagos()
+    #quitar_seg_personas()
     main()
     #nombrar_responsables_archivo_aps()
     #aps_cedular_ya_reportadas()
