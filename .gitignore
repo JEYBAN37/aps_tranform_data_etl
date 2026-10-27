@@ -211,3 +211,6 @@ credentials.json
 *~
 *.tmp
 *.log
+bases_downloads/
+*.csv
+*.html
