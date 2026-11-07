@@ -1,354 +1,244 @@
-from datetime import datetime
+import re
+import unicodedata
 import pandas as pd
-import firebase_admin
-from firebase_admin import credentials
-from export_aps_124 import limpiar_tildes
-from export_usuarios_institucionales import codificar_formato
 
 
+def limpiar_texto(texto):
+    """Limpia tildes, caracteres especiales, saltos de línea y convierte a mayúsculas segun PISIS."""
+    if pd.isna(texto) or texto is None:
+        return ""
+    texto_str = str(texto).strip()
+    # Eliminar saltos de linea internos
+    texto_str = re.sub(r'[\r\n]+', ' ', texto_str)
+    # Normalizar Unicode para quitar tildes
+    texto_nfd = unicodedata.normalize('NFD', texto_str)
+    texto_sin_tildes = "".join(c for c in texto_nfd if unicodedata.category(c) != 'Mn')
+    # Conservar solo caracteres alfanumericos y espacios
+    texto_limpio = re.sub(r'[^a-zA-Z0-9\s\-._]', '', texto_sin_tildes)
+    return texto_limpio.upper()
 
-def df_tipo_1(tipo_registro, propiedades_tipo_1, num):
-    formato = pd.DataFrame([{
-        'tipo_registro': tipo_registro,
-        'tipo_identificacion_identidad': propiedades_tipo_1[0],
-        'numero_identificacion': propiedades_tipo_1[1],
-        'fecha_inicial': propiedades_tipo_1[2],
-        'fecha_final': propiedades_tipo_1[3],
-        'numero_total_registros': num
+
+def formatear_fecha(valor, fecha_defecto="1900-01-01"):
+    """Formatea la fecha a AAAA-MM-DD o retorna la fecha por defecto si no aplica."""
+    if pd.isna(valor) or str(valor).strip() == "" or str(valor).strip() == "NaT":
+        return fecha_defecto
+    try:
+        dt = pd.to_datetime(valor)
+        return dt.strftime('%Y-%m-%d')
+    except Exception:
+        return fecha_defecto
+
+
+def formatear_decimal(valor):
+    """Formatea montos a decimales estricto sin comas de miles y 2 decimales."""
+    if pd.isna(valor) or str(valor).strip() == "":
+        return ""
+    try:
+        val_float = float(valor)
+        return f"{val_float:.2f}"
+    except ValueError:
+        return ""
+
+
+def formatear_porcentaje(valor):
+    """Formatea el porcentaje con un solo decimal (ej: 100.0 o 20.5)."""
+    if pd.isna(valor) or str(valor).strip() == "":
+        return ""
+    try:
+        val_float = float(valor)
+        return f"{val_float:.1f}"
+    except ValueError:
+        return "0.0"
+
+
+def generar_archivo_plano():
+    archivo_excel = '/home/esteban/Documents/APS-RICAURTE/Plantilla_Datos_SER124DREC_1397.xlsx'
+
+    # 1. Cargar Hojas de Entrada
+    xls = pd.ExcelFile(archivo_excel)
+    df_params = pd.read_excel(xls, 'Parametros_Control')
+    df_t3_in = pd.read_excel(xls, 'Tipo_3_Contratos')
+    df_t4_in = pd.read_excel(xls, 'Tipo_4_Polizas')
+    df_t5_in = pd.read_excel(xls, 'Tipo_5_Seguimientos')
+    df_t6_in = pd.read_excel(xls, 'Tipo_6_Reintegros')
+    df_t7_in = pd.read_excel(xls, 'Tipo_7_Rendimientos')
+
+    param = df_params.iloc[0]
+
+    # 2. CONSTRUIR REGISTRO TIPO 2 (Incorporación)
+    val_incorp_raw = param.get('indicador_incorp')
+    ind_t2 = 'NA' if pd.isna(val_incorp_raw) or str(val_incorp_raw).strip().lower() == 'nan' else str(
+        val_incorp_raw).upper()
+
+    registro_t2 = {
+        'tipo_registro': '2',
+        'consecutivo': 1,
+        'id_recurso': str(param['id_recurso']),
+        'nit': str(param['nit_reportante']),
+        'indicador': ind_t2,
+        'tipo_acto': str(param.get('tipo_acto_incorp', '')) if ind_t2 != 'NA' else '',
+        'numero_acto': limpiar_texto(param.get('numero_acto_incorp', '')) if ind_t2 != 'NA' else '',
+        'fecha_incorp': formatear_fecha(param.get('fecha_incorp', ''), "") if ind_t2 != 'NA' else '',
+        'valor_incorp': formatear_decimal(param.get('valor_incorp', '')) if ind_t2 != 'NA' else ''
+    }
+    df_tipo_2 = pd.DataFrame([registro_t2])
+
+    # 3. CONSTRUIR REGISTRO TIPO 3 (Contratos)
+    registros_t3 = []
+    consecutivo = 2
+    for _, r in df_t3_in.iterrows():
+        ind = str(r.get('indicador', 'I')).upper()
+        es_na = ind == 'NA'
+        registros_t3.append({
+            'tipo_registro': '3',
+            'consecutivo': consecutivo,
+            'id_recurso': str(r['id_recurso']),
+            'nit': str(param['nit_reportante']),
+            'indicador': ind,
+            'tipo_contrato': str(r.get('tipo_contrato', '')) if not es_na else '',
+            'numero_contrato': limpiar_texto(r.get('numero_contrato', '')) if not es_na else '',
+            'fecha_inicio': formatear_fecha(r.get('fecha_inicio_contrato')) if not es_na else '',
+            'fecha_termino': formatear_fecha(r.get('fecha_termino_contrato')) if not es_na else '',
+            'objeto': limpiar_texto(r.get('objeto', ''))[:500] if not es_na else '',
+            'valor': formatear_decimal(r.get('valor_contratado')) if not es_na else '',
+            'tipo_doc_contratista': str(r.get('contratista_tipo_identificacion', '')) if not es_na else '',
+            'num_doc_contratista': str(r.get('numero_identificacion', '')).split('.')[0] if not es_na else '',
+            'nombre_contratista': limpiar_texto(r.get('nombre_contratista', ''))[:100] if not es_na else '',
+            'tipo_doc_supervisor': str(r.get('tipo_doc_supervisor', '')) if not es_na else '',
+            'num_doc_supervisor': str(r.get('numero_supervisor', '')).split('.')[0] if not es_na else '',
+            'nombre_supervisor': limpiar_texto(r.get('nombre_supervisor', ''))[:100] if not es_na else ''
+        })
+        consecutivo += 1
+    df_tipo_3 = pd.DataFrame(registros_t3)
+
+    # 4. CONSTRUIR REGISTRO TIPO 4 (Pólizas)
+    registros_t4 = []
+    for _, r in df_t4_in.iterrows():
+        ind = str(r.get('indicador', 'NA')).upper()
+        es_na = ind == 'NA'
+        registros_t4.append({
+            'tipo_registro': '4',
+            'consecutivo': consecutivo,
+            'id_recurso': str(r['id_recurso']),
+            'nit': str(param['nit_reportante']),
+            'indicador': ind,
+            'tipo_contrato': str(r.get('codigo_tipo_contrato', '')) if not es_na else '',
+            'numero_contrato': limpiar_texto(r.get('numero_contrato', '')) if not es_na else '',
+            'poliza': limpiar_texto(r.get('poliza', '')) if not es_na else '',
+            'fecha_poliza': formatear_fecha(r.get('fecha')) if not es_na else ''
+        })
+        consecutivo += 1
+    df_tipo_4 = pd.DataFrame(registros_t4)
+
+    # 5. CONSTRUIR REGISTRO TIPO 5 (Seguimiento Técnico / Financiero)
+    registros_t5 = []
+    for _, r in df_t5_in.iterrows():
+        ind = str(r.get('indicador', 'I')).upper()
+        es_na = ind == 'NA'
+        registros_t5.append({
+            'tipo_registro': '5',
+            'consecutivo': consecutivo,
+            'id_recurso': str(r['id_recurso']),
+            'nit': str(param['nit_reportante']),
+            'indicador': ind,
+            'tipo_contrato': str(r.get('codigo_tipo_contrato', '')) if not es_na else '',
+            'numero_contrato': limpiar_texto(r.get('numero_contrato', '')) if not es_na else '',
+            'tipo_acta': str(r.get('codigo_tipo_acta', '')) if not es_na else '',
+            'num_acta': str(r.get('orden', '')).split('.')[0] if not es_na else '',
+            'fecha_acta': formatear_fecha(r.get('fecha')) if not es_na else '',
+            'valor_obligado': formatear_decimal(r.get('valor_obligado')) if not es_na else '',
+            'valor_pagado': formatear_decimal(r.get('valor_pagado')) if not es_na else '',
+            'porcentaje': formatear_porcentaje(r.get('porcentaje_ejecucion', 0)) if not es_na else '',
+            'conclusion': limpiar_texto(r.get('conclusion', ''))[:500] if not es_na else ''
+        })
+        consecutivo += 1
+    df_tipo_5 = pd.DataFrame(registros_t5)
+
+    # 6. CONSTRUIR REGISTRO TIPO 6 (Reintegro de Recursos)
+    registros_t6 = []
+    for _, r in df_t6_in.iterrows():
+        ind = str(r.get('indicador', 'NA')).upper()
+        es_na = ind == 'NA'
+        registros_t6.append({
+            'tipo_registro': '6',
+            'consecutivo': consecutivo,
+            'id_recurso': str(r['id_recurso']),
+            'nit': str(param['nit_reportante']),
+            'indicador': ind,
+            'tipo_acto': str(r.get('tipo_acto', '')) if not es_na else '',
+            'numero_acto': limpiar_texto(r.get('numero_acto', '')) if not es_na else '',
+            'fecha_acto': formatear_fecha(r.get('fecha_acto')) if not es_na else '',
+            'entidad_reintegro': str(r.get('codigo_entidad_reintegro', '')) if not es_na else '',
+            'nit_banco': str(r.get('nit_banco', '')).split('.')[0] if not es_na else '',
+            'cuenta_bancaria': str(r.get('numero_cuenta', '')) if not es_na else '',
+            'valor_reintegrado': formatear_decimal(r.get('valor_reintegrado')) if not es_na else '',
+            'fecha_consignacion': formatear_fecha(r.get('fecha_consignacion')) if not es_na else '',
+            'portafolio': str(r.get('portafolio', '')) if not es_na else ''
+        })
+        consecutivo += 1
+    df_tipo_6 = pd.DataFrame(registros_t6)
+
+    # 7. CONSTRUIR REGISTRO TIPO 7 (Rendimientos Financieros)
+    registros_t7 = []
+    for _, r in df_t7_in.iterrows():
+        ind = str(r.get('indicador', 'NA')).upper()
+        es_na = ind == 'NA'
+        registros_t7.append({
+            'tipo_registro': '7',
+            'consecutivo': consecutivo,
+            'id_recurso': str(r['id_recurso']),
+            'nit': str(param['nit_reportante']),
+            'indicador': ind,
+            'tipo_acto': str(r.get('tipo_acto', '')) if not es_na else '',
+            'numero_acto': limpiar_texto(r.get('numero_acto', '')) if not es_na else '',
+            'fecha_acto': formatear_fecha(r.get('fecha_acto')) if not es_na else '',
+            'entidad_reintegro': str(r.get('codigo_entidad_reintegro', '')) if not es_na else '',
+            'nit_banco': str(r.get('nit_banco', '')).split('.')[0] if not es_na else '',
+            'cuenta_bancaria': str(r.get('numero_cuenta', '')) if not es_na else '',
+            'valor_rendimientos': formatear_decimal(r.get('valor_rendimientos')) if not es_na else '',
+            'fecha_consignacion': formatear_fecha(r.get('fecha_consignacion')) if not es_na else '',
+            'portafolio': str(r.get('portafolio', '')) if not es_na else ''
+        })
+        consecutivo += 1
+    df_tipo_7 = pd.DataFrame(registros_t7)
+
+    # 8. CONSTRUIR REGISTRO TIPO 1 (Control)
+    total_registros_detalle = len(df_tipo_2) + len(df_tipo_3) + len(df_tipo_4) + len(df_tipo_5) + len(df_tipo_6) + len(
+        df_tipo_7)
+    df_tipo_1 = pd.DataFrame([{
+        'tipo_registro': '1',
+        'tipo_identificacion': str(param['tipo_identificacion']),
+        'numero_identificacion': str(param['nit_entidad']),
+        'fecha_inicial': formatear_fecha(param['fecha_inicial']),
+        'fecha_final': formatear_fecha(param['fecha_final']),
+        'total_registros': total_registros_detalle
     }])
 
-    # poner mayusculas a todos los campos de tipo string
-    for col in formato.select_dtypes(include=['object']).columns:
-        formato[col] = formato[col].str.upper()
+    # 9. CONVERTIR CADA TIPO A TEXTO PLANO SEPARADO POR PIPES (|)
+    lineas = []
+    for df in [df_tipo_1, df_tipo_2, df_tipo_3, df_tipo_4, df_tipo_5, df_tipo_6, df_tipo_7]:
+        for row in df.itertuples(index=False):
+            val_limpios = ["" if pd.isna(val) or str(val).lower() == 'nan' else str(val) for val in row]
+            lineas.append("|".join(val_limpios))
 
-    return formato
+    # SOLUCIÓN CLAVE: Unir con \r\n pero asegurando que la última línea NO lleve salto al final
+    contenido_plano = "\r\n".join(lineas)
 
-def df_tipo_2(tipo_registro, propiedades_tipo_2, nit):
-    formato = pd.DataFrame([{
-        'tipo_registro': tipo_registro,
-        'recurso': propiedades_tipo_2[0][i],
-        'nit': nit,
-        'codigo': propiedades_tipo_2[1][i],
-        'tipo_persona': propiedades_tipo_2[2],
-        'codigo_actividad_economica': propiedades_tipo_2[3][i],
-        'fecha_resolucion': propiedades_tipo_2[4][i],
-        'valor_matricula': propiedades_tipo_2[5][i],
-    } for i in range(len(propiedades_tipo_2[0]))])
+    # 10. GENERAR NOMBRE ESTÁNDAR PISIS (48 caracteres exactos)
+    fecha_corte_str = pd.to_datetime(param['fecha_final']).strftime('%Y%m%d')
+    tipo_id = str(param['tipo_identificacion']).upper().zfill(2)
+    num_id = str(param['nit_entidad']).zfill(12)
+    id_recurs = str(param['id_recurso'])
 
-    # poner mayusculas a todos los campos de tipo string
-    for col in formato.select_dtypes(include=['object']).columns:
-        formato[col] = formato[col].str.upper()
+    nombre_archivo_txt = f"/home/esteban/Documents/APS-RICAURTE/SER124DREC{fecha_corte_str}{tipo_id}{num_id}{id_recurs}.txt"
 
-    formato.insert(1, 'consecutivo_registro', range(1, 1 + len(formato)))
+    # Escribir sin salto de línea extra al final del archivo
+    with open(nombre_archivo_txt, 'w', encoding='utf-8', newline='') as f:
+        f.write(contenido_plano)
 
-    return formato
-
-def convertidor_objeto(row):
-
-    row_sin_caracteres_especiales = limpiar_tildes(row)
-
-    return row_sin_caracteres_especiales[:300]  # Limitar a 300 caracteres
-
-def df_tipo_3(tipo_registro, inicio_consecutivo, propiedades_tipo_3, df_personas, nit, recurso):
-    formato = pd.DataFrame()
-
-    if df_personas.empty:
-        formato = pd.DataFrame([{
-            'tipo_registro': tipo_registro,
-            'id_recurso': recurso,
-            'nit': nit,
-            'indicador': 'NA',
-            'tipo_contrato': '',
-            'numero_contrato': '',
-            'fecha_inicio_contrato': '',
-            'fecha_termino_contrato': '',
-            'objeto_contrato': '',
-            'valor': '',
-            'contratista_tipo_identificacion': '',
-            'numero_identificacion': '',
-            'nombre_contratista': '',
-            'tipo_doc_supervisor': '',
-            'numero_supervisor': '',
-            'nombre_supervisor': '',
-        }])
-
-        return formato
-
-    formato = pd.DataFrame([{
-        'tipo_registro': tipo_registro,
-        'id_recurso': row['id_recurso'],
-        'nit': nit,
-        'indicador': row['indicador'],
-        'tipo_contrato': propiedades_tipo_3[1],
-        'numero_contrato': row['numero_contrato'],
-        'fecha_inicio_contrato': row['fecha_inicio_contrato'].date(),
-        'fecha_termino_contrato':  pd.to_datetime(row['fecha_termino_contrato']).strftime('%Y-%m-%d') if pd.notna(row['fecha_termino_contrato']) else '',
-        'objeto_contrato': convertidor_objeto(row['objeto']).upper(),
-        'valor': f"{row['valor_contratado']}.00",
-        'contratista_tipo_identificacion': row['contratista_tipo_identificacion'],
-        'numero_identificacion': str(row['numero_identificacion']).split('.')[0] if pd.notna(row['numero_identificacion']) else '',
-        'nombre_contratista': limpiar_tildes(row['nombre_contratista']).upper() if pd.notna(row['nombre_contratista']) and row['nombre_contratista'] != '' else '',
-        'tipo_doc_supervisor': row['tipo_doc_supervisor'],
-        'numero_supervisor': str(row['numero_supervisor']).split('.')[0] if pd.notna(row['numero_supervisor']) else '',
-        'nombre_supervisor': limpiar_tildes(row['nombre_supervisor']).upper() if pd.notna(row['nombre_supervisor']) else '',
-    } for _, row in df_personas.iterrows()])
-
-    valor_rango = inicio_consecutivo + 1
-    formato.insert(1, 'consecutivo_registro', range(valor_rango, valor_rango + len(formato)))
-    return formato
-
-def df_tipo_4(tipo_registro, df ,nit, inicio_consecutivo, recurso='ID2139724657'):
-    if df.empty:
-        formato = pd.DataFrame([{
-            'tipo_registro': tipo_registro,
-            'id_recurso': recurso,
-            'nit': nit,
-            'indicador': 'NA',
-            'codigo': '',
-            'numero_contrato': '',
-            'poliza':'',
-            'fecha':'',
-        }])
-    else :
-        formato = pd.DataFrame([{
-            'tipo_registro': tipo_registro,
-            'id_recurso': row['id_recurso'],
-            'nit': nit,
-            'indicador': row['indicador'],
-            'codigo': row['codigo'],
-            'numero_contrato': row['numero_contrato'],
-            'poliza': row['poliza'],
-            'fecha': row['fecha'].date(),
-        } for _, row in df.iterrows()])
-
-    valor_rango = inicio_consecutivo + 1
-    formato.insert(1, 'consecutivo_registro', range(valor_rango, valor_rango + len(formato)))
-    return formato
-
-def obtenert_porcentaje(df, param, param1):
-    total = df[df['numero_contrato'] == param]['valor'].sum()
-    if total > 0:
-        porcentaje = (param1 / total) * 100
-        return f"{porcentaje:.1f}"
-    return "0.00"
-
-def df_tipo_5(tipo_registro,df,nit, inicio_consecutivo, recurso):
-
-    if df.empty:
-        formato = pd.DataFrame([{
-            'tipo_registro': tipo_registro,
-            'id_recurso': recurso,
-            'nit': nit,
-            'indicador': 'NA',
-            'codigo_adminitarativo': '',
-            'numero_contrato': '',
-            'tipo_contrato': '',
-            'numero_acta': '',
-            'fecha_acta': '',
-            'valor_acta': '',
-            'valor_pagado': '',
-            'porcentaje': '',
-            'conlusion': '',
-        }])
-        return formato
-    # remove fully empty rows (all NaN) and rows where every value is empty/whitespace
-    df = df.dropna(how='all').reset_index(drop=True)
-    df = df[~df.apply(lambda r: r.astype(str).str.strip().eq('').all(), axis=1)].reset_index(drop=True)
-    formato = pd.DataFrame([{
-        'tipo_registro': tipo_registro,
-        'id_recurso': row['id_recurso'],
-        'nit': nit,
-        'indicador': row['indicador'],
-        'codigo_adminitarativo':'1',
-        'numero_contrato': row['numero_contrato'],
-        'tipo_contrato': '1',
-        'numero_acta': str(row['orden']).split('.')[0],
-        'fecha_acta': row['fecha'],
-        'valor_acta': f"{str(row['valor']).split('.')[0]}.00",
-        'valor_pagado':  f"{str(row['valor']).split('.')[0]}.00",
-        'porcentaje': '100.0',
-        'conlusion': 'ENTREGADO PARCIAL DE LOS PRODUCTOS CONTRATADOS',
-    } for _, row in df.iterrows()])
-
-    valor_rango = inicio_consecutivo + 1
-    formato.insert(1, 'consecutivo_registro', range(valor_rango, valor_rango + len(formato)))
-    return formato
-
-def df_tipo_6(tipo_registro,nit, inicio_consecutivo,id_recurso):
-    formato = pd.DataFrame([{
-        'tipo_registro': tipo_registro,
-        'id_recurso': id_recurso,
-        'nit': nit,
-        'indicador': 'NA',
-        'codigo': '',
-        'numero_contrato': '',
-        'fecha_inicio': '',
-        'codigo_entidad_aseguradora': '',
-        'nit_aseguradora': '',
-        'cuenta_poliza': '',
-        'valor_asegurado': '',
-        'fecha_consignacion': '',
-        'fecha_vencimiento': ''
-    }])
-
-    valor_rango = inicio_consecutivo + 1
-    formato.insert(1, 'consecutivo_registro', range(valor_rango, valor_rango + len(formato)))
-    return formato
-
-def df_tipo_7(tipo_registro,nit, inicio_consecutivo, df, id_recurso):
-
-    if df.empty:
-        formato = pd.DataFrame([{
-            'tipo_registro': tipo_registro,
-            'id_recurso': id_recurso,
-            'nit': nit,
-            'indicador': 'NA',
-            'codigo_adminitarativo': '',
-            'numero_contrato': '',
-            'fecha_acta': '',
-            'entidad':'',
-            'nit_entidad': '',
-            'cuenta_bancaria': '',
-            'rendimiento': '',
-            'fecha_pago_rendimiento': '',
-            'portafolio': '',
-        }])
-    else :
-        formato = pd.DataFrame([{
-            'tipo_registro': tipo_registro,
-            'id_recurso': row['id_recurso'],
-            'nit': nit,
-            'indicador': row['indicador'],
-            'codigo_adminitarativo': '5',
-            'numero_contrato': row['numero_contrato'],
-            'fecha_acta': row['fecha'].date(),
-            'entidad':'1',
-            'nit_entidad': row['banco'],
-            'cuenta_bancaria': row['cuenta'],
-            'rendimiento': str(row['rendimiento']),
-            'fecha_pago_rendimiento': row['fecha_pago'].date(),
-            'portafolio': row['portafolio'],
-        } for _, row in df.iterrows()])
-
-    valor_rango = inicio_consecutivo + 1
-    formato.insert(1, 'consecutivo_registro', range(valor_rango, valor_rango + len(formato)))
-    return formato
-
-
-def main():
-
-    PROPIEDADES_TIPO_1 = [
-    # 1
-    'NI',
-    # 2
-    '900091143',
-    # 3
-    '2026-06-30',
-    # 4
-    '2026-06-30',
-    ]
-
-    PROPIEDADES_TIPO_2 = [
-    # 1
-        ['ID2080126718'], # RESOLUCION 801
-    # 2
-        ['NA'],
-    # 3
-        '4',
-    # 4
-        [''],
-    # 5
-        [''],
-    # 6
-        [''],
-    ]
-
-    PROPIEDADES_TIPO_3 = [
-    # 1
-        'I',
-    # 2|
-        '1',
-    # 3
-        [
-            'CONTRATAR LA PRESTACION DE SERVICIOS CON EL FIN DE LLEVAR A CABO LAS ACTIVIDADES DESCRITAS PARA LOS EQUIPOS BASICOS DE SALUD EN EL MICROTERRITORIO ASIGNADO',
-            'ADQUISICION DE CHALECOS GORRAS Y MALETINES CON EMBLEMAS OIFICIALES PARA IDENTIFICAR A LOS MIEMBROS DE LOS EQUIPOS BASICOS DE SALUD',
-            'PRESTACION DE SERVICIOS DE TRANSPORTE ESPECIAL PARA EL DESARROLLO DE LA ESTRATEGIA DE ATENCION',
-            'COMPRA DE EQUIPOS BIOMEDICOSPARA EQUIPOS BASICOS EN SALUD DE LAS DIFERENTES SEDES QUE CONFORMAN LAS REDES PRESTADORAS DE SERVICIOS EN SALUD',
-            'PRESTACION DE SERVICIOS PARA EL APOYO A LA GESTION COMO COORDINACION TECNICA ADMINISTRATIVA CON EL FIN DE APOYAR A LA EJECUCION OPERATIVA DEL PROYECTO FORTALECIMIENTO DE LA GESTION TERRITORIAL EN APS',
-            'COMPRA DE ELEMENTOS CATEGORIZADOS EN LE LINEA DE CONSUMO MATERIALES Y SUMINISTROS DE ACUERDO A LAS NECESIDADES IDENTIFICADAS PARA EL DESARROLLO DEL PROGRAMA DE ATENCION PRIMARIA EN SALUD DE LOS EQUIPOS BASICOS DE SALUD EN LAS DIFERENTES ZONAS Y MICROTERRITORIOS RURALES Y URBANOS DEL MUNICIPIO DE PASTO EJECUTADO POR PASTO SALUD ESE',
-            'COMPRA DE MATERIAL PUBLICITARIO DE IDENTIFICACION DEL PERSONAL DE EQUIPOS BASICOS EN SALUD DENTRO DEL DESARROLLO DE ESTRATEGIAS DE ATENCION PRIMARIA EN SALUD EN LAS DIFERENTES ZONAS Y MICROTERRITORIOS RURALES Y URBANOS DEL MUNICIPIO DE PASTO EJECUTADO POR PASTO SALUD ESE.'
-        ]
-    ]
-
-    url = 'activos/reporte_ser/RESOLUCION_801_TIPO_3.xlsx'
-    ur_polisa = 'activos/polisa_873_DEL.xlsx'
-    url_flujo = 'activos/reporte_ser/RESOLUCION_873_TIPO_5_JUL_2026.xlsx'
-    url_rendimiento = 'activos/rendimientos_873.xlsx'
-
-
-    cruzadfas = 'activos/cruzadas.xlsx'
-    url_flujo_2025 = 'activos/flujo_caja-limpio.xlsx'
-    url_consolidado_1773 = 'activos/consolidado_1773.xlsx'
-    sumar_valores = 'activos/ap.xlsx'
-
-    # Read the Excel file
-
-    df = pd.read_excel(url, engine='openpyxl')  # Ensure `openpyxl` is installed
-    df_recurso_4 = pd.read_excel(ur_polisa)  # Ensure `openpyxl` is installed
-    df_recurso_5 = pd.read_excel(url_flujo, engine='openpyxl',sheet_name="ARCHIVO_CARGAR_CORRECION")  # Ensure `openpyxl` is installed
-    df_recurso_7 = pd.read_excel(url_rendimiento, engine='openpyxl')  # Ensure `openpyxl` is installed
-
-    df_recurso_5['orden'] = df_recurso_5['orden'].astype(str).str.split('.').str[0]
-
-    #df_group_by_numero = df.groupby('numero_contrato')['valor'].sum().reset_index()
-    #df_group_by_numero.to_excel('activos/consolidado_1778_final.xlsx', index=False)
-    #df_contratos_presentes_en_caja_2025['diferente'] =  df_contratos_presentes_en_caja_2025['valor'] == df_contratos_presentes_en_caja_2025['valor_pagado']
-
-    #df_group_by_numero.to_excel('activos/nueva_cruzada_restantes_1778.xlsx', index=False)
-    #df_recurso_5.to_excel('activos/flujo_caja_limpio.xlsx', index=False)
-
-    #df_recurso_5['numero_contrato'] = \
-    #df_recurso_5['numero_contrato'].str.replace(' ', '').str.extract(r'(\d{3,4}-\d{4})')[0]
-    df_recurso_5['fecha'] = pd.to_datetime(df_recurso_5['fecha'],
-                                                             errors='coerce').dt.date
-
-    #df_recurso_5.to_excel('activos/flujo_caja_limpio_3.xlsx', index=False)
-
-
-
-# FALTRAIA FRECUENCIA DE PAGO EN EL TIPO 4
-# SEGUROS
-
-    # 0
-    TIPO_REGISTROS = ['1','2', '3','4','5','6','7']
-    # 3
-    FE_CORTE = datetime.now().strftime('%Y-%m-%d')
-
-
-    tipo_2 = df_tipo_2(TIPO_REGISTROS[1], PROPIEDADES_TIPO_2, PROPIEDADES_TIPO_1[1])
-    tipo_3 = df_tipo_3(TIPO_REGISTROS[2],len(tipo_2),PROPIEDADES_TIPO_3,df,PROPIEDADES_TIPO_1[1],PROPIEDADES_TIPO_2[0][0])  # Suponiendo que no hay registros de tipo 3 por ahora
-    tipo_4 = df_tipo_4(TIPO_REGISTROS[3], df_recurso_4, PROPIEDADES_TIPO_1[1], len(tipo_2) + len(tipo_3),PROPIEDADES_TIPO_2[0][0] )  # Suponiendo que no hay registros de tipo 4 por ahora
-    tipo_5 = df_tipo_5(TIPO_REGISTROS[4], df_recurso_5, PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4),PROPIEDADES_TIPO_2[0][0])  # Suponiendo que no hay registros de tipo 5 por ahora
-    tipo_6 = df_tipo_6(TIPO_REGISTROS[5], PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5),PROPIEDADES_TIPO_2[0][0])
-    tipo_7 = df_tipo_7(TIPO_REGISTROS[6], PROPIEDADES_TIPO_1[1],len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5) + len(tipo_6),df_recurso_7,PROPIEDADES_TIPO_2[0][0])
-    # Suponiendo que no hay registros de tipo 6 por ahora
-    tipo_1 = df_tipo_1(TIPO_REGISTROS[0], PROPIEDADES_TIPO_1,
-                        len(tipo_2) + len(tipo_3) + len(tipo_4) + len(tipo_5) + len(tipo_6) + len(tipo_7))
-
-    consolidado = codificar_formato(tipo_1) + '\n'
-    consolidado += codificar_formato(tipo_2) + '\n'
-    consolidado += codificar_formato(tipo_3) + '\n'
-    consolidado += codificar_formato(tipo_4) + '\n'
-    consolidado += codificar_formato(tipo_5) + '\n'
-    consolidado += codificar_formato(tipo_6) + '\n'
-    consolidado += codificar_formato(tipo_7)
-
-    file_name = f"reportes/SER124DREC20260831NI000900091143{PROPIEDADES_TIPO_2[0][0]}.txt"
-
-    # Guardar el archivo en la misma carpeta
-    with open(file_name, 'w', encoding='utf-8') as f:
-        f.write(consolidado)
+    print(f"✅ Archivo plano generado exitosamente: {nombre_archivo_txt}")
+    print(f"📊 Registros totales de detalle procesados: {total_registros_detalle}")
 
 
 if __name__ == "__main__":
-    main()
+    generar_archivo_plano()

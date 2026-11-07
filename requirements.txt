@@ -140,8 +140,6 @@ python-dotenv==1.2.2
 pytweening==1.2.0
 pytz==2025.2
 pywhatkit==5.4
-pywin32==311
-pywin32-ctypes==0.2.3
 pyxnat==1.6.4
 RapidFuzz==3.14.5
 rdflib==7.6.0
