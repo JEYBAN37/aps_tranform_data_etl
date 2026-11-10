@@ -2,7 +2,6 @@ import pandas as pd
 
 from automatizacion_looker_aps.query.query_persona import query_persona
 from automatizacion_looker_aps.utils.cargar_big_query import cargar_csv_a_bigquery, limpiar_formatos
-from automatizacion_looker_aps.utils.limpiar_canalizaciones import limpiar_y_extraer
 from automatizacion_looker_aps.utils.sobrescribir_sheets import sobrescribir_hoja
 from mysql_conector import ejecutar_consulta_mysql
 
@@ -91,7 +90,7 @@ def separar_canalizaciones(df, i=None):
     df["canalizacionuno"] = df["canalizacionuno"].str.replace(",", "$", regex=False)
     for i in range(3):
         df[f"canalizacion_{i+1}"] = df["canalizacionuno"].apply(
-            lambda x, i=i: limpiar_y_extraer(x, i))
+            lambda x, i=i: separar_canalizaciones(x, i))
     return df
 
 def asignar_correo_aseguradora(df):

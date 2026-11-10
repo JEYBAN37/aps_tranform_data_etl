@@ -1,6 +1,3 @@
-import numpy as np
-import pandas as pd
-
 from automatizacion_looker_aps.personas.personas import cargar_personas
 from automatizacion_looker_aps.responsables.responsable import cargar_responsables
 from credenciales import MYSQL_APS, MYSQL_REPLICA_USER, MYSQL_REPLICA_PASSWORD, DATABASE, \

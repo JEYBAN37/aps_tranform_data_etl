@@ -1,3 +1,437 @@
+"""ETL de actividades (intervenciones).
+
+Ubicación sugerida: automatizacion_looker_aps/actividades/actividades.py
+
+Depende de los resultados de personas y familias (df_personas, df_familia):
+se usan para clasificar cada intervención (nueva caracterización, actualización
+de ficha, plan de cuidado creado o firmado).
+"""
+import ast
+import json
+import os
+import re
+from collections import defaultdict
+from dataclasses import dataclass
+
+import pandas as pd
+
+from automatizacion_looker_aps.familias.comunes import extraer_por_bases
+from automatizacion_looker_aps.query.query_intervenciones import query_intervenciones
+from automatizacion_looker_aps.utils.cargar_big_query import cargar_csv_a_bigquery, limpiar_formatos
+from automatizacion_looker_aps.utils.sobrescribir_sheets import sobrescribir_hoja
+
+
+# ───────────────────────── 1. REGLAS DE DATOS (config) ─────────────────────────
+HOJA_SHEETS = "ACTIVIDADES"
+TABLA_BQ = "datos_aps.actividades"
+PROYECTO_BQ = "aps-project-478903"
+
+COLS_ID = ["observacion_id", "familia_id", "sociambiental_id", "juventudadultos_id"]
+COLS_SIN_LIMPIAR_TEXTO = {"historial", "fecha"}
+
+COLS_AGRUPACION = [
+    "responsable_id", "fecha", "observacion_id", "familia_id", "sociambiental_id",
+    "juventudadultos_id", "responsable_nombre", "responsable_profesion",
+    "conteo_nuevas_caracterizaciones", "conteo_plan_cuidado", "id_familia_plan",
+    "conteo_actualizaciones_ficha",
+]
+
+ERROR_CARACTERIZACION = "ERROR EN CARACTERIZACION"
+PLAN_CREADO = "PLAN DE CUIDADO CREADO"
+PLAN_FIRMADO = "PLAN DE CUIDADO FIRMADO"
+PLAN_ERROR = "PLAN DE CUIDADO NO VALIDO ERROR"
+
+# Una intervención cuenta como nueva caracterización solo si es posterior a esta fecha
+FECHA_INICIO_CARACTERIZACIONES = "2025-12-31"
+# Una intervención sobre una persona cuenta como actualización si pasan más de N días
+# desde la caracterización de su familia
+DIAS_ACTUALIZACION_PERSONA = 30
+
+COLS_CRUDO_REQUERIDAS = [*COLS_ID, "historial", "fecha", "responsable_id",
+                         "responsable_nombre", "responsable_profesion"]
+COLS_FAMILIA_REQUERIDAS = ["familia_id", "sociambiental_id", "fecha", "validacion", "db",
+                           "dirfamiliograma", "familiograma", "dirplancuidado", "plancuidado"]
+COLS_PERSONAS_REQUERIDAS = ["juventud_id", "familia_id", "doc_id"]
+COLUMNAS_SALIDA = [*COLS_AGRUPACION, "count", "dir_anexo", "anexo", "db_anterior"]
+
+
+# ───────────────────────── 2. EXTRACT ─────────────────────────
+def extraer_actividades(cursor, bases: list[str]) -> pd.DataFrame:
+    return extraer_por_bases(cursor, bases, query_intervenciones, "intervenciones")
+
+
+# ───────────────────────── 3. UTILIDADES ─────────────────────────
+_NULOS = {"", "nan", "none", "<na>", "nat"}
+
+
+def clave(valor):
+    """Normaliza un id para compararlo: 123, 123.0 y '123' -> '123'. Nulos -> None."""
+    if valor is None:
+        return None
+    texto = re.sub(r"\.0+$", "", str(valor).strip())
+    return None if texto.lower() in _NULOS else texto
+
+
+def parse_historial(valor) -> dict:
+    """Convierte el campo 'historial' (JSON o dict en texto) en un dict. Una sola vez por fila."""
+    if isinstance(valor, dict):
+        return valor
+    if isinstance(valor, str):
+        try:
+            res = json.loads(valor)
+        except Exception:
+            try:
+                res = ast.literal_eval(valor)
+            except Exception:
+                return {}
+        return res if isinstance(res, dict) else {}
+    return {}
+
+
+# ───────────────────────── 4. LIMPIEZA BÁSICA ─────────────────────────
+def limpiar_ids(df):
+    """Ids como texto sin '.0'. Los nulos quedan como 'nan' (igual que antes)."""
+    df = df.copy()
+    for c in COLS_ID:
+        df[c] = (df[c].fillna("nan").astype(str).str.strip()
+                   .str.replace(r"\.0+$", "", regex=True))
+    return df
+
+
+def limpiar_texto(df):
+    df = df.copy()
+    excluir = set(COLS_ID) | COLS_SIN_LIMPIAR_TEXTO
+    for c in df.select_dtypes(include="object").columns:
+        if c in excluir:
+            continue
+        df[c] = (df[c].fillna("").astype(str).str.strip()
+                   .str.replace(r"[^\w\s]", "", regex=True))
+    return df
+
+
+def procesar_fecha(df):
+    df = df.copy()
+    df["fecha"] = (pd.to_datetime(df["fecha"], errors="coerce")
+                     .dt.strftime("%Y-%m-%d").fillna(""))
+    return df
+
+
+# ───────────────────────── 5. CONTEXTO (búsquedas precalculadas) ─────────────────────────
+@dataclass
+class Contexto:
+    familias: dict               # familia_id -> {fecha, hay_error, validacion, id}
+    sociambiental: dict          # sociambiental_id -> {total, ok, hay_error, validacion}
+    personas: dict               # juventud_id -> {familia_id, doc_id}
+    tabla_familias: pd.DataFrame  # una fila por familia (para copiar atributos)
+
+
+def _faltantes(df, requeridas, nombre):
+    faltan = set(requeridas) - set(df.columns)
+    if faltan:
+        raise ValueError(f"{nombre}: faltan columnas {sorted(faltan)}")
+
+
+def validar_insumos(df_crudo, df_familia, df_personas):
+    _faltantes(df_crudo, COLS_CRUDO_REQUERIDAS, "actividades")
+    _faltantes(df_familia, COLS_FAMILIA_REQUERIDAS, "familias")
+    _faltantes(df_personas, COLS_PERSONAS_REQUERIDAS, "personas")
+
+
+def construir_contexto(df_familia: pd.DataFrame, df_personas: pd.DataFrame) -> Contexto:
+    """Antes se filtraba el DataFrame de familias por cada fila (muy lento).
+    Ahora se agrupa una sola vez y las reglas consultan diccionarios."""
+    fam = df_familia.copy()
+    fam["_fid"] = fam["familia_id"].map(clave)
+    fam["_sid"] = fam["sociambiental_id"].map(clave)
+    fam["fecha"] = (pd.to_datetime(fam["fecha"], errors="coerce")
+                      .dt.strftime("%Y-%m-%d").fillna(""))
+    fam["_error"] = fam["validacion"].astype(str).str.contains(ERROR_CARACTERIZACION, na=False)
+    fam["_ok"] = ~fam["_error"]
+    col_id = "id" if "id" in fam.columns else "familia_id"
+
+    con_familia = fam.dropna(subset=["_fid"])
+    familias = (con_familia.groupby("_fid", sort=False)
+                .agg(fecha=("fecha", "first"), hay_error=("_error", "any"),
+                     validacion=("validacion", "first"), id=(col_id, "first"))
+                .to_dict("index"))
+
+    viviendas = (fam.dropna(subset=["_sid"]).groupby("_sid", sort=False)
+                 .agg(total=("_ok", "size"), ok=("_ok", "sum"),
+                      hay_error=("_error", "any"), validacion=("validacion", "first"))
+                 .to_dict("index"))
+
+    per = df_personas.copy()
+    per["_jid"] = per["juventud_id"].map(clave)
+    per["_fid"] = per["familia_id"].map(clave)
+    personas = (per.dropna(subset=["_jid"]).drop_duplicates("_jid")
+                .set_index("_jid")[["_fid", "doc_id"]]
+                .rename(columns={"_fid": "familia_id"})
+                .to_dict("index"))
+
+    tabla = con_familia.drop_duplicates("_fid").set_index("_fid")
+    return Contexto(familias, viviendas, personas, tabla)
+
+
+def atributo_familia(ids: pd.Series, ctx: Contexto, columna: str) -> pd.Series:
+    """Valor de `columna` para la familia de cada fila; '0' si la familia no existe."""
+    mapa = ctx.tabla_familias[columna]
+    claves = ids.map(clave)
+    return claves.map(mapa).where(claves.isin(mapa.index), "0")
+
+
+# ───────────────────────── 6. REGLAS DE NEGOCIO (una por tipo de conteo) ─────────────────────────
+# Los textos de salida son idénticos a la versión anterior (incluidos espacios y
+# sufijos |C, | O, |O) para no romper los cálculos de Looker.
+
+def _texto_ficha(fam, texto_ok, sufijo):
+    if not fam["hay_error"]:
+        return f" 1 | {texto_ok} {sufijo}"
+    return f" 1 | {str(fam['validacion']).strip()} {sufijo}"
+
+
+def regla_nueva_caracterizacion(fila, hist, ctx):
+    sid = clave(fila.get("sociambiental_id"))
+    vivienda = ctx.sociambiental.get(sid) if sid else None
+    if vivienda is None or hist.get("updateDate"):
+        return "0"
+    if (fila.get("fecha") or "") <= FECHA_INICIO_CARACTERIZACIONES:
+        return "0"
+    if int(vivienda["ok"]) > 0:
+        return f" {int(vivienda['ok'])} | OK"
+    return f" {int(vivienda['total'])} | {vivienda['validacion']} "
+
+
+def regla_actualizacion_ficha(fila, hist, ctx):
+    sid = clave(fila.get("sociambiental_id"))
+    fid = clave(fila.get("familia_id"))
+    jid = clave(fila.get("juventudadultos_id"))
+    obs = clave(fila.get("observacion_id"))
+
+    fecha_fila = fila.get("fecha") or "1900-01-01"
+    fecha_modificacion = hist.get("fecha") or "1900-01-01"
+    hubo_actualizacion = bool(hist.get("updateDate"))
+    # (la clave del JSON viene escrita 'dirfamilliograma', con doble l)
+    dir_familiograma = hist.get("dirfamilliograma") or None
+
+    # A. Ficha de vivienda
+    if sid:
+        vivienda = ctx.sociambiental.get(sid)
+        if vivienda is None:
+            return " 1 | VERIFICAR FAMILIA NO TIENE |C"
+        if hubo_actualizacion and fecha_fila > fecha_modificacion:
+            return _texto_ficha(vivienda, "ACTUALIZACION DE FICHA VIVIENDA", "|C")
+
+    # B. Ficha de familia
+    if fid:
+        fam = ctx.familias.get(fid)
+        if fam is None:
+            return " 1 | VERIFICAR FAMILIA NO TIENE |C"
+        if (fila.get("fecha") or "") > fam["fecha"]:
+            return _texto_ficha(fam, "ACTUALIZACION DE FICHA FAMILIA", "|C")
+
+    # C. Ficha de persona (más de N días después de la caracterización de su familia)
+    if jid:
+        persona = ctx.personas.get(jid)
+        if persona is None:
+            return " 1 | VERIFICAR PERSONA NO EXISTE |C"
+        fam = ctx.familias.get(persona["familia_id"])
+        if fam is None:
+            return " 1 | VERIFICAR FAMILIA NO TIENE  |C"
+        limite = pd.to_datetime(fam["fecha"], errors="coerce") + pd.Timedelta(days=DIAS_ACTUALIZACION_PERSONA)
+        if pd.to_datetime(fecha_fila, errors="coerce") > limite:
+            return _texto_ficha(fam, f"ACTUALIZACION DE FICHA PERSONA {persona['doc_id']}", "| O")
+
+    # D. Observación sobre una familia
+    if obs and fid:
+        fam = ctx.familias.get(fid)
+        if fam is None:
+            return " 1 | VERIFICAR FAMILIA NO TIENE  |O"
+        if dir_familiograma is not None:
+            return _texto_ficha(fam, f"ACTUALIZACION DE OBSERVACION {fam['id']}", "|O")
+
+    return "0"
+
+
+def regla_plan_cuidado(fila, hist, ctx):
+    """Devuelve 'TIPO DE PLAN | familia_id' (se separa después en dos columnas)."""
+    if not clave(fila.get("observacion_id")) or hist.get("dirfamilliograma"):
+        return "0"
+
+    fid = clave(hist.get("familia_id"))
+    if fid is None:
+        return PLAN_ERROR
+
+    fam = ctx.familias.get(fid)
+    if fam is None:
+        return f"PLAN DE CUIDADO NO VALIDO | {fid}"
+    if fam["hay_error"]:
+        return f"PLAN DE CUIDADO CON {str(fam['validacion']).strip()} | {fid}"
+    if hist.get("plancuidado"):
+        return f"{PLAN_FIRMADO} | {fid}"
+
+    actividad = hist.get("actividaddesarrollar")
+    if actividad:
+        return f"{PLAN_CREADO} | {fid}"
+    if actividad == "":
+        return f"PLAN DE CUIDADO NO VALIDO | {fid}"
+    return "0"
+
+
+def _evaluar(regla, valor_error, fila, hist, ctx, errores):
+    """Ejecuta una regla; si falla devuelve valor_error y lo registra (no se pierde en silencio)."""
+    try:
+        return regla(fila, hist, ctx)
+    except Exception as e:
+        errores[regla.__name__].append(f"{type(e).__name__}: {e}")
+        return valor_error
+
+
+def clasificar_intervenciones(df: pd.DataFrame, ctx: Contexto) -> pd.DataFrame:
+    errores = defaultdict(list)
+    nuevas, fichas, planes = [], [], []
+
+    historiales = df["historial"].map(parse_historial)     # se parsea una sola vez
+    for fila, hist in zip(df.to_dict("records"), historiales):
+        nuevas.append(_evaluar(regla_nueva_caracterizacion, "0", fila, hist, ctx, errores))
+        fichas.append(_evaluar(regla_actualizacion_ficha, "0", fila, hist, ctx, errores))
+        planes.append(_evaluar(regla_plan_cuidado, PLAN_ERROR, fila, hist, ctx, errores))
+
+    for nombre, lista in errores.items():
+        print(f"[calidad] ⚠ {len(lista)} filas fallaron en {nombre}. Ejemplo: {lista[0]}")
+
+    df = df.copy()
+    df["conteo_nuevas_caracterizaciones"] = nuevas
+    df["conteo_actualizaciones_ficha"] = fichas
+    df["conteo_plan_cuidado"] = planes
+    return df
+
+
+def separar_plan_y_familia(df):
+    """'PLAN DE CUIDADO CREADO | 123' -> conteo_plan_cuidado='PLAN DE CUIDADO CREADO', id_familia_plan='123'."""
+    df = df.copy()
+    conteo = df["conteo_plan_cuidado"]
+    partes = conteo.str.split("|", regex=False)
+    df["id_familia_plan"] = partes.str[-1].str.strip().where(conteo != "0", "0")
+    df["conteo_plan_cuidado"] = partes.str[0].str.strip().where(conteo != "0", "0")
+    return df
+
+
+# ───────────────────────── 7. AGRUPAR Y SELECCIONAR PLANES ─────────────────────────
+def agrupar_actividades(df):
+    resultado = df.groupby(COLS_AGRUPACION).size().reset_index(name="count")
+    perdidas = len(df) - int(resultado["count"].sum())
+    if perdidas:
+        print(f"[calidad] ⚠ {perdidas} filas descartadas al agrupar (alguna clave nula, p. ej. responsable_id)")
+    return resultado.sort_values(["fecha", "responsable_id"])
+
+
+def seleccionar_planes_creados(df):
+    """Un plan creado por familia: el de fecha más antigua."""
+    creados = df[df["conteo_plan_cuidado"] == PLAN_CREADO]
+    return (creados.sort_values(["fecha", "id_familia_plan"])
+                   .drop_duplicates("id_familia_plan", keep="first")
+                   .sort_values("id_familia_plan", kind="stable")
+                   .reset_index(drop=True))
+
+
+def seleccionar_planes_firmados(df, df_creados):
+    """Solo cuenta un plan firmado si lo firma el mismo responsable que lo creó.
+    Una firma por (familia, responsable): la de fecha más antigua."""
+    firmados = (df[df["conteo_plan_cuidado"] == PLAN_FIRMADO]
+                .sort_values(["id_familia_plan", "fecha", "responsable_id"]))
+    claves = df_creados[["id_familia_plan", "responsable_id"]].drop_duplicates()
+    firmados = firmados.merge(claves, on=["id_familia_plan", "responsable_id"], how="inner")
+    return (firmados.drop_duplicates(["id_familia_plan", "responsable_id"], keep="first")
+                    .reset_index(drop=True))
+
+
+def agregar_anexos(df, ctx, col_dir, col_anexo):
+    df = df.copy()
+    df["dir_anexo"] = atributo_familia(df["id_familia_plan"], ctx, col_dir)
+    df["anexo"] = atributo_familia(df["id_familia_plan"], ctx, col_anexo)
+    return df
+
+
+# ───────────────────────── 8. TRANSFORM (orquestación de los pasos) ─────────────────────────
+def transformar_actividades(df_crudo, df_familia, df_personas):
+    validar_insumos(df_crudo, df_familia, df_personas)
+    ctx = construir_contexto(df_familia, df_personas)
+
+    df = (df_crudo
+          .pipe(limpiar_ids)
+          .pipe(limpiar_texto)
+          .pipe(procesar_fecha)
+          .pipe(clasificar_intervenciones, ctx)
+          .pipe(separar_plan_y_familia)
+          .pipe(agrupar_actividades))
+
+    creados = seleccionar_planes_creados(df)
+    firmados = seleccionar_planes_firmados(df, creados)
+    otros = df[~df["conteo_plan_cuidado"].isin([PLAN_FIRMADO, PLAN_CREADO])]
+
+    creados = agregar_anexos(creados, ctx, "dirfamiliograma", "familiograma")
+    firmados = agregar_anexos(firmados, ctx, "dirplancuidado", "plancuidado")
+
+    final = pd.concat([firmados, creados, otros], ignore_index=True)
+    final["db_anterior"] = atributo_familia(final["id_familia_plan"], ctx, "db")
+    return final
+
+
+# ───────────────────────── 9. VALIDAR ─────────────────────────
+def validar_actividades(df: pd.DataFrame) -> pd.DataFrame:
+    faltantes = set(COLUMNAS_SALIDA) - set(df.columns)
+    assert not faltantes, f"Faltan columnas: {faltantes}"
+    assert len(df) > 0, "DataFrame vacío"
+
+    creados = df[df["conteo_plan_cuidado"] == PLAN_CREADO]
+    assert not creados["id_familia_plan"].duplicated().any(), "Hay familias con más de un plan creado"
+    firmados = df[df["conteo_plan_cuidado"] == PLAN_FIRMADO]
+    assert not firmados.duplicated(["id_familia_plan", "responsable_id"]).any(), \
+        "Hay planes firmados duplicados (familia + responsable)"
+
+    print("[calidad] filas por tipo de plan:\n" + df["conteo_plan_cuidado"].value_counts().to_string())
+
+    planes = df["conteo_plan_cuidado"].isin([PLAN_CREADO, PLAN_FIRMADO])
+    sin_familia = (planes & (df["db_anterior"] == "0")).sum()
+    if sin_familia:
+        print(f"[calidad] ⚠ {sin_familia} planes cuya familia no está en la tabla de familias")
+    return df
+
+
+# ───────────────────────── 10. LOAD ─────────────────────────
+def formatear_actividades(df):
+    return limpiar_formatos(df, columnas_fecha=["fecha"])
+
+
+def cargar_csv_actividades(df, fe_reporte):
+    ruta = f"../reportes/{fe_reporte}/looker/consolidado_actividades_{fe_reporte}.csv"
+    df.to_csv(ruta, index=False)
+
+
+def cargar_bigquery_actividades(df):
+    cargar_csv_a_bigquery(df, table_id=TABLA_BQ, project_id=PROYECTO_BQ)
+
+
+def cargar_sheets_actividades(df, sheet_id, client):
+    if not sheet_id:
+        raise ValueError("Falta SHEET_ID_ACTIVIDADES (variable de entorno o constante)")
+    sobrescribir_hoja(sheet_id, HOJA_SHEETS, df.drop(columns=COLS_ID), client)   # la hoja no lleva los ids
+
+
+# ───────────────────────── 11. ORQUESTACIÓN (sin Dagster) ─────────────────────────
+def etl_actividades(cursor, df_familia, df_personas, fe_reporte, client, bases,
+                    sheet_id):
+    crudo = extraer_actividades(cursor, bases)
+    transformado = transformar_actividades(crudo, df_familia, df_personas)
+    validado = validar_actividades(transformado)
+    final = formatear_actividades(validado)
+
+    cargar_csv_actividades(final, fe_reporte)
+    cargar_bigquery_actividades(final)
+    cargar_sheets_actividades(final, sheet_id, client)
+    return final
+
+
 import ast
 import json
 
@@ -84,7 +518,7 @@ def extrer_variable_familia(row, df_familias, variable):
     return '0'
 
 
-def filtro_actividades(cursor,df_familia, db, df_personas,reporte,client,sheet_id,responsables_ebs):
+def filtro_actividades(cursor,df_familia, db, df_personas,reporte,client,sheet_id):
 
     acumulado_actividades = []
 
