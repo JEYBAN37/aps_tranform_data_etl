@@ -69,7 +69,7 @@ def agregar_filas_intervenciones_validas(row, df_interveciones_validas):
         }
 
 
-def verificar_indicadores(df_intervenciones, sheet_id, client, df_responsables):
+def verificar_indicadores(df_intervenciones, sheet_id, client, df_responsables, df_familia):
     df_validas = df_intervenciones.dropna(subset=['actividaddesarrollar']).copy()
 
     # 1. CORRECCIÓN: Definir TODAS las columnas del DataFrame objetivo (incluyendo id_responsable)
@@ -85,6 +85,14 @@ def verificar_indicadores(df_intervenciones, sheet_id, client, df_responsables):
         lambda row: agregar_filas_intervenciones_validas(row, df_interveciones_validas),
         axis=1
     )
+
+    # merge con df_familia oslo ocge el id_sociambiental para poenr dos coulanes terrtitoir y micreoterriotio
+    df_interveciones_validas = df_interveciones_validas.merge(
+        df_familia[['sociambiental_id', 'territorio', 'microterritorio']],
+        left_on='id_sociambiental',
+        right_on='sociambiental_id',
+        how='left'
+    ).drop(columns=['sociambiental_id'])  # Eliminamos la columna 'id' duplicada
 
     # Limpieza de textos en columnas 'resultado' y 'objetivo'
     for col in ['resultado', 'objetivo']:

@@ -7,7 +7,6 @@ from automatizacion_looker_aps.familias.familias import cargar_familias
 from automatizacion_looker_aps.intervenciones.filtrado_actividades import filtro_actividades
 from automatizacion_looker_aps.intervenciones.verificar_intervenciones import verificar_indicadores
 from automatizacion_looker_aps.novedades.novedades import cargar_novedades
-from automatizacion_looker_aps.personas.personas import cargar_personas
 from automatizacion_looker_aps.responsables.responsable import cargar_responsables
 from credenciales import MYSQL_APS, MYSQL_REPLICA_USER, MYSQL_REPLICA_PASSWORD, DATABASE, \
     DATABASE_APS2025
@@ -100,7 +99,7 @@ def main():
                            "14NIa4AlbXU5pVXmhLBbJwnidy4HmI2ZatFfMJ91ThXw", responsables_ebs)
         connection.commit()
 
-        verificar_indicadores(df_situaciones_priorizadas,sheet_id="1_jymVqZ5GocxJZTtoBZky94O0B5JoXa95Cn3lGw7scI",client=client,df_responsables=responsables_ebs)
+        verificar_indicadores(df_situaciones_priorizadas,sheet_id="1_jymVqZ5GocxJZTtoBZky94O0B5JoXa95Cn3lGw7scI",client=client,df_responsables=responsables_ebs,df_familia=df_familia)
 
         cursor = connection.cursor()
         cargar_novedades(cursor, df_distribucion_redes,FE_REPORTE,client,DATABASE,"1Yr9gvmWQ7i6ANgI-9LAW8Yfwi6HScJfF7ll3nm0StTE")

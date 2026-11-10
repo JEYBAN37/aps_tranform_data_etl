@@ -1,46 +1,61 @@
+
 import pandas as pd
-import re
 
-def limpiar_y_extraer(texto, posicion):
-    if pd.isna(texto):
-        return None
+# ── REGLAS DE DATOS (el orden importa: gana la primera que coincida) ──
+CATEGORIAS = [
+    (r"medico|medicina general|atencion en salud de promocion|recien nacido|urgencias",
+        "Medicina General / Urgencias / PYMS"),
+    (r"odontolog|salud oral",
+        "Odontología / Salud Oral"),
+    (r"enfermera|enfermeria|lactancia",
+        "Enfermería PYM / Lactancia"),
+    (r"vacunacion",
+        "Vacunación"),
+    (r"citologia|cancer|riesgo cardiovascular|tamizaje|vih|prueba rapida",
+        "Tamizajes, Citología y VIH"),
+    (r"anticoncepcion|planificacion|preservativos",
+        "Planificación Familiar y Anticoncepción"),
+    (r"tramite de autorizacion",
+        "Trámites Administrativos"),
+    (r"valoracion integral",
+        "Valoración Integral PYMS"),
+    (r"violencias|sospecha",
+        "Ruta Violencias de Género"),
+]
 
-    # 1. Dividir el texto por el signo $
-    partes = [p.strip() for p in str(texto).split('$')]
+# valores que significan "sin canalización" (con límite de palabra)
+PATRON_IGNORAR = r"^(?:no aplica|no requiere|no|sd|ninguno)\b"
 
-    # Si la posición que buscamos no existe en este registro, salimos
-    if posicion >= len(partes):
-        return None
 
-    opcion = partes[posicion]
+def _clasificar(serie: pd.Series) -> pd.Series:
+    """Recibe una Serie de textos y devuelve la categoría estandarizada."""
+    limpio = (serie.str.strip()
+                   .str.replace(r"[0-9|.]", "", regex=True)
+                   .str.strip())
 
-    # 2. Limpiar números, puntos y pipes (|)
-    opcion_limpia = re.sub(r'[0-9|.]', '', opcion).strip()
+    # versión para comparar: sin tildes y en minúsculas
+    norm = (limpio.str.normalize("NFKD")
+                  .str.encode("ascii", "ignore").str.decode("ascii")
+                  .str.lower())
 
-    # 3. Si empieza por "No", "Ninguno", "SD", etc., lo ignoramos (devolvemos None/Null)
-    if re.match(r'^(No|No aplica|No requiere|SD|Ninguno|\\s*$)', opcion_limpia, re.IGNORECASE):
-        return None
+    # por defecto devuelve el texto limpio (o nulo si quedó vacío)
+    resultado = limpio.where(limpio.notna() & (limpio != ""))
 
-    # 4. Agrupar y estandarizar según tu diccionario de la ruta PYMS
-    if re.search(r'(Medico|medicina general|Atención en salud de promoción|recién nacido|Urgencias)', opcion_limpia,
-                 re.IGNORECASE):
-        return 'Medicina General / Urgencias / PYMS'
-    elif re.search(r'(Odontolog|Salud oral)', opcion_limpia, re.IGNORECASE):
-        return 'Odontología / Salud Oral'
-    elif re.search(r'(Enfermera|Enfermeria|lactancia)', opcion_limpia, re.IGNORECASE):
-        return 'Enfermería PYM / Lactancia'
-    elif re.search(r'(Vacunacion)', opcion_limpia, re.IGNORECASE):
-        return 'Vacunación'
-    elif re.search(r'(Citologia|cancer|riesgo cardiovascular|Tamizaje|VIH|Prueba rapida)', opcion_limpia,
-                   re.IGNORECASE):
-        return 'Tamizajes, Citología y VIH'
-    elif re.search(r'(anticoncepcion|Planificación|preservativos)', opcion_limpia, re.IGNORECASE):
-        return 'Planificación Familiar y Anticoncepción'
-    elif re.search(r'(Tramite de autorizacion)', opcion_limpia, re.IGNORECASE):
-        return 'Trámites Administrativos'
-    elif re.search(r'(Valoración Integral)', opcion_limpia, re.IGNORECASE):
-        return 'Valoración Integral PYMS'
-    elif re.search(r'(violencias|sospecha)', opcion_limpia, re.IGNORECASE):
-        return 'Ruta Violencias de Género'
+    # aplicar reglas en reversa para que la primera regla de la lista gane
+    for patron, categoria in reversed(CATEGORIAS):
+        resultado = resultado.mask(norm.str.contains(patron, regex=True, na=False), categoria)
 
-    return opcion_limpia if opcion_limpia != "" else None
+    # los valores "ignorar" ganan sobre todo
+    return resultado.mask(norm.str.match(PATRON_IGNORAR, na=False))
+
+
+def separar_canalizaciones(df: pd.DataFrame, col="canalizacionuno", n=3) -> pd.DataFrame:
+    df = df.copy()
+    df[col] = df[col].str.replace(",", "$", regex=False)
+
+    # un solo split para las 3 columnas (antes se hacía 3 veces por fila)
+    partes = df[col].str.split("$", expand=True, regex=False).reindex(columns=range(n))
+
+    for i in range(n):
+        df[f"canalizacion_{i+1}"] = _clasificar(partes[i])
+    return df

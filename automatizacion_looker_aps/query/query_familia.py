@@ -25,6 +25,8 @@ def query_familia(database):
         f.cursovidafamilia,
         f.poblacionetnica,
         f.resguardo,
+        s.estadotecho,
+        s.estadoparedes,
         o.ecomapa,
         o.resultadoecomapa,
         o.dirfamiliograma,
@@ -67,6 +69,8 @@ def query_familia(database):
         s.riesgoexterno,
         s.vacunamascotas,
         s.vector,
+        s.riesgoexterno,
+        s.acceso,
         s.riesgo,
         f.antecedenteenfermedad,
         f.riesgopsicosocial,
@@ -79,6 +83,8 @@ def query_familia(database):
         o.fortalezas,
         o.entornoafectado,
         o.indicadorria,
+        o.estado AS observacion_estado,
+        o.canalizacionuno as canalizacion_observacion,
         o.id AS observacion_id
 
     FROM {database}.familias f

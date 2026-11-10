@@ -7,122 +7,148 @@ from automatizacion_looker_aps.utils.sobrescribir_sheets import sobrescribir_hoj
 from mysql_conector import ejecutar_consulta_mysql
 
 
-def cargar_personas(cursor, df_distribucion_redes,FE_REPORTE,client,db,sheet_id):
-    acumulado_personas = []
-    for database in db:
-        personas_query = ejecutar_consulta_mysql(query_persona(database), cursor)
-        if not personas_query:
-            print(f"No se encontraron familias para {database}. Continuando.")
+# ───────────────────────── 1. REGLAS DE DATOS (config) ─────────────────────────
+CORREO_ASEGURADORAS = "pastosaludeseaps@gmail.com"
+ASEGURADORAS_CON_CORREO = {
+    "EMSSANAR", "MALLAMAS", "SANITAS", "PROINSALUD", "FOMAC",
+    "FAMISANAR", "FAMISSANAR", "NUEVA EPS",
+}
+
+COLS_ID = ["familia_id", "sociambiental_id", "numero"]
+COLS_FECHA = ["fecha", "fechanac"]
+COLS_SIN_LIMPIAR_TEXTO = ("canalizacionuno",)
+COLUMNAS_REQUERIDAS = [
+    "familia_id", "sociambiental_id", "numero", "doc_id",
+    "fecha", "fechanac", "territorio", "aseguradora", "canalizacionuno",
+]
+
+# ───────────────────────── 2. EXTRACT ─────────────────────────
+def extraer_personas(cursor, bases: list[str]) -> pd.DataFrame:
+    frames = []
+    for base in bases:
+        filas = ejecutar_consulta_mysql(query_persona(base), cursor)
+        if not filas:
+            print(f"[extract] Sin registros en {base}")
             continue
-        acumulado_personas.extend(personas_query)
+        columnas = [d[0] for d in cursor.description]
+        df = pd.DataFrame(filas, columns=columnas)
+        df["base_origen"] = base          # trazabilidad: de dónde vino cada fila
+        frames.append(df)
 
-    personas = acumulado_personas
-    df_personas_consolidados = pd.DataFrame(personas)
-    df_personas_consolidados.columns = [desc[0] for desc in cursor.description]
+    if not frames:
+        raise ValueError("Extract: ninguna base devolvió personas")
 
-    df_personas_consolidados['familia_id'] = (
-        df_personas_consolidados['familia_id']
-        .fillna('')
-        .astype(str)
-        .str.strip()
-        .str.replace(r'\.0+$', '', regex=True)
-    )
+    df = pd.concat(frames, ignore_index=True)
+    print(f"[extract] {len(df)} filas de {len(frames)} bases")
+    return df
 
-    df_personas_consolidados['id'] = (
-        df_personas_consolidados['familia_id']
-        .fillna('')
-        .astype(str)
-        .str.strip()
-        .str.replace(r'\.0+$', '', regex=True)
-    )
+# ───────────────────────── 3. TRANSFORM (funciones pequeñas) ─────────────────────────
+def _limpiar_id(s: pd.Series) -> pd.Series:
+    return (s.fillna("").astype(str).str.strip()
+             .str.replace(r"\.0+$", "", regex=True))
 
+def _calcular_edad(nac: pd.Series, hoy: pd.Timestamp) -> pd.Series:
+    edad = (hoy.year - nac.dt.year
+            - ((nac.dt.month > hoy.month) |
+               ((nac.dt.month == hoy.month) & (nac.dt.day > hoy.day))).astype(int))
+    return edad.astype("Int64").astype(str).replace("<NA>", "")
 
-    df_personas_consolidados['sociambiental_id'] = (
-        df_personas_consolidados['sociambiental_id']
-        .fillna('')
-        .astype(str)
-        .str.strip()
-        .str.replace(r'\.0+$', '', regex=True)
-    )
+def limpiar_ids(df):
+    df = df.copy()
+    for c in COLS_ID:
+        df[c] = _limpiar_id(df[c])
+    df["id"] = df["familia_id"]
+    df["doc_id"] = df["doc_id"].astype(str).str.replace(r"\D+", "", regex=True)
+    return df
 
-    df_personas_consolidados['numero'] = (
-        df_personas_consolidados['numero']
-        .fillna('')
-        .astype(str)
-        .str.strip()
-        .str.replace(r'\.0+$', '', regex=True)
-    )
+def limpiar_texto(df):
+    df = df.copy()
+    cols_texto = [c for c in df.select_dtypes(include="object").columns
+                  if c not in COLS_SIN_LIMPIAR_TEXTO]
+    for c in cols_texto:
+        df[c] = (df[c].fillna("").astype(str).str.strip()
+                   .str.replace(r"[^\w\s]", "", regex=True))
+    return df
 
-    for i, col in enumerate(df_personas_consolidados.columns):
-        if df_personas_consolidados.dtypes.iloc[i] == object and col not in ('canalizacionuno'):
-            df_personas_consolidados[col] = df_personas_consolidados[col].fillna('').astype(
-                str).str.strip().str.replace(r'[^\w\s]', '', regex=True)
+def procesar_fechas(df):
+    df = df.copy()
+    hoy = pd.Timestamp.today().normalize()
+    df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
+    df["fechanac"] = pd.to_datetime(df["fechanac"], errors="coerce")
+    df["edad"] = _calcular_edad(df["fechanac"], hoy)
+    for c in COLS_FECHA:
+        df[c] = df[c].dt.strftime("%Y-%m-%d").fillna("")
+    return df
 
-    df_personas_consolidados['canalizacionuno'] = (
-        df_personas_consolidados['canalizacionuno']
-        .str.replace(',', '$', regex=True)
-    )
+def enriquecer_redes(df, df_redes):
+    df = df.copy()
+    mapa = df_redes.drop_duplicates("TERRITORIO").set_index("TERRITORIO")["RED"]
+    df["redes"] = df["territorio"].map(mapa).fillna("")
+    return df
 
-    df_personas_consolidados['fecha'] = pd.to_datetime(df_personas_consolidados['fecha'],
-                                                       errors='coerce').dt.strftime('%Y-%m-%d').fillna('').astype(
-        str)
+def separar_canalizaciones(df, i=None):
+    df = df.copy()
+    df["canalizacionuno"] = df["canalizacionuno"].str.replace(",", "$", regex=False)
+    for i in range(3):
+        df[f"canalizacion_{i+1}"] = df["canalizacionuno"].apply(
+            lambda x, i=i: limpiar_y_extraer(x, i))
+    return df
 
-    df_personas_consolidados['fechanac'] = pd.to_datetime(df_personas_consolidados['fechanac'], errors='coerce')
-    today = pd.to_datetime('today').normalize()
+def asignar_correo_aseguradora(df):
+    df = df.copy()
+    es_valida = df["aseguradora"].str.upper().str.strip().isin(ASEGURADORAS_CON_CORREO)
+    df["correo_aseguradora_correspondiente"] = es_valida.map(
+        {True: CORREO_ASEGURADORAS, False: ""})
+    return df
 
-    def _calc_age(birth):
-        if pd.isna(birth):
-            return ''
-        return str(today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day)))
+def transformar_personas(df, df_redes, fe_reporte):
+    df = (df
+          .pipe(limpiar_ids)
+          .pipe(limpiar_texto)
+          .pipe(procesar_fechas)
+          .pipe(enriquecer_redes, df_redes)
+          .pipe(separar_canalizaciones)
+          .pipe(asignar_correo_aseguradora))
+    df["reporte_fecha"] = fe_reporte
+    return df
 
-    df_personas_consolidados['edad'] = df_personas_consolidados['fechanac'].apply(_calc_age)
-    df_personas_consolidados['fechanac'] = df_personas_consolidados['fechanac'].dt.strftime('%Y-%m-%d').fillna(
-        '').astype(str)
+# ───────────────────────── 4. VALIDAR (antes de cargar) ─────────────────────────
+def validar_personas(df: pd.DataFrame) -> pd.DataFrame:
+    faltantes = set(COLUMNAS_REQUERIDAS) - set(df.columns)
+    assert not faltantes, f"Faltan columnas: {faltantes}"
+    assert len(df) > 0, "DataFrame vacío"
+    assert (df["familia_id"] != "").all(), "Hay filas sin familia_id"
 
-    df_personas_consolidados['doc_id'] = df_personas_consolidados['doc_id'].astype(str).str.strip().str.replace(
-        r'\D+', '', regex=True)
+    sin_red = (df["redes"] == "").sum()
+    if sin_red:
+        print(f"[calidad] ⚠ {sin_red} personas sin red asignada")
+    dup = df.duplicated(subset=["familia_id", "doc_id"]).sum()
+    if dup:
+        print(f"[calidad] ⚠ {dup} duplicados familia_id+doc_id")
+    return df
 
-    df_personas_consolidados['redes'] = df_personas_consolidados['territorio'].map(
-        df_distribucion_redes.set_index('TERRITORIO')['RED']
-    ).fillna('')
-    
+# ───────────────────────── 5. LOAD (cada destino por separado) ─────────────────────────
+def cargar_csv(df, fe_reporte):
+    ruta = f"../reportes/{fe_reporte}/looker/cosolidado_personas_{fe_reporte}.csv"
+    df.to_csv(ruta, index=False)
 
-    # quiero contar cuantos registros hay por estado
-    total_rows = len(df_personas_consolidados)
+def cargar_bigquery(df):
+    df = limpiar_formatos(df, columnas_fecha=["fechanac", "fecha", "reporte_fecha"])
+    cargar_csv_a_bigquery(df, table_id="datos_aps.personas",
+                          project_id="aps-project-478903")
+    return df
 
-    df_personas_consolidados['canalizacion_1'] = df_personas_consolidados['canalizacionuno'].apply(lambda x: limpiar_y_extraer(x, 0))
-    df_personas_consolidados['canalizacion_2'] = df_personas_consolidados['canalizacionuno'].apply(lambda x: limpiar_y_extraer(x, 1))
-    df_personas_consolidados['canalizacion_3'] = df_personas_consolidados['canalizacionuno'].apply(lambda x: limpiar_y_extraer(x, 2))
+def cargar_sheets(df, sheet_id, client):
+    sobrescribir_hoja(sheet_id, "cosolidado_personas", df, client)
 
-    #df_personas_consolidados.to_csv(F'../crucez/base_actualizada/cosolidado_personas_{FE_REPORTE}.csv', index=False)
+# ───────────────────────── 6. ORQUESTACIÓN ─────────────────────────
+def etl_personas(cursor, df_redes, fe_reporte, client, bases, sheet_id):
+    crudo   = extraer_personas(cursor, bases)
+    limpio  = transformar_personas(crudo, df_redes, fe_reporte)
+    final   = validar_personas(limpio)
 
-    df_personas_consolidados['reporte_fecha'] = FE_REPORTE
-
-
-    asegurador_filtro = (('Emssanar', 'pastosaludeseaps@gmail.com'),
-                         ('Mallamas','pastosaludeseaps@gmail.com'),
-                         ('Sanitas','pastosaludeseaps@gmail.com'),
-                         ('PROINSALUD','pastosaludeseaps@gmail.com'),
-                         ('Fomac','pastosaludeseaps@gmail.como'),
-                         ('Famisanar','pastosaludeseaps@gmail.com'),
-                         ('FAMISANAR', 'pastosaludeseaps@gmail.com'),
-                         ('Famissanar', 'pastosaludeseaps@gmail.com'),
-                         ('Nueva EPS','pastosaludeseaps@gmail.com')
-                         )
-
-    # poner coluna correo_aseguradora_correspondiente con el correo correspondiente a cada aseguradora a las otras ponles en blanco
-    df_personas_consolidados['correo_aseguradora_correspondiente'] = df_personas_consolidados['aseguradora'].apply(lambda x: dict(asegurador_f or asegurador_f in asegurador_filtro for asegurador_f in asegurador_filtro if asegurador_f[0] == x).get(x, ''))
-
-    df_personas_consolidados['reporte_fecha'] = FE_REPORTE
-    if not FE_REPORTE:
-        df_personas_consolidados.to_csv(
-            F'../reportes/{FE_REPORTE}/looker/cosolidado_personas_{FE_REPORTE}.csv')
-
-        df_personas_consolidados = limpiar_formatos( df_personas_consolidados, columnas_fecha=['fechanac', 'fecha', 'reporte_fecha'])
-
-        cargar_csv_a_bigquery(df_personas_consolidados, table_id="datos_aps.personas", project_id="aps-project-478903")
-
-        sobrescribir_hoja(sheet_id, "cosolidado_personas", df_personas_consolidados,
-                        client)
-
-    return df_personas_consolidados
+    if fe_reporte:
+        cargar_csv(final, fe_reporte)
+        final = cargar_bigquery(final)
+        cargar_sheets(final, sheet_id, client)
+    return final

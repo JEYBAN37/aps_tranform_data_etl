@@ -18,8 +18,8 @@ from credenciales import (
 from mysql_conector import ejecutar_consulta_mysql
 
 # Habilitar lectura de KML
-fiona.drvsupport.supported_drivers["KML"] = "rw"
 
+fiona.drvsupport.supported_drivers["KML"] = "rw"
 
 def cargar_kml_aps(ruta_kml):
     """Carga el KML de la estrategia APS en un GeoDataFrame WGS84."""
@@ -296,10 +296,10 @@ if __name__ == "__main__":
 
     # Carga del dataset de producción
     print("📄 Cargando archivo CSV de producción...")
-    df_personas = pd.read_csv(r"F:\APS AUTOMATIZACIONES\aps\automatizacion_looker_aps\produccion_ese\bases_downloads\produccion_filtrada_2026_EBS_agosto.csv", encoding='latin-1')
+    df_personas = pd.read_csv(r"F:\APS AUTOMATIZACIONES\aps\automatizacion_looker_aps\produccion_ese\bases_downloads\reporte_unificado_2026.csv")
 
     df_caracterizados = pd.read_csv(
-        r"F:\APS AUTOMATIZACIONES\reportes\2026-10-26\looker\cosolidado_personas_2026-10-26.csv")
+        r"F:\APS AUTOMATIZACIONES\reportes\2026-11-06\looker\cosolidado_personas_2026-11-06.csv")
 
     # 1. Asegurar que la columna de identificación en df_personas esté limpia y en formato texto
     df_personas["Identificacion"] = df_personas["Identificacion"].astype(str).str.strip().str.strip('.0')
@@ -338,7 +338,7 @@ if __name__ == "__main__":
     total_procesar = mask_sin_micro.sum()
 
     direcciones_unicas = (
-        df_personas.loc[mask_sin_micro, "Dir_Afil"]
+        df_personas.loc[mask_sin_micro, "Dir Afil"]
         .dropna()
         .astype(str)
         .unique()
@@ -376,7 +376,7 @@ if __name__ == "__main__":
 
     # Exportar resultados
     df_personas.to_csv(
-        "bases_downloads/produccion_filtrada_2026_EBS_microterritorios_para_eps.csv",
+        "bases_downloads/produccion_filtrada_2026_EBS_microterritorios_sept.csv",
         index=False,
     )
 

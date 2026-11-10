@@ -195,6 +195,26 @@ if __name__ == "__main__":
 
     matriz = matriz.sort_values(by=['territorio','microterritorio'])
 
+    # ordenar columnas
+    columnas_ordenadas = ['territorio', 'microterritorio', 'conteo_familias', 'conteo_personas',
+                          'numero_niños_primera_infancia', 'numero_niños_valoracion_integral_primera_infancia',
+                          'numero_niños_infancia', 'numero_niños_valoracion_integral_infancia',
+                          'numero_adolescentes', 'numero_adolescentes_valoracion_integral',
+                          'numero_juventud', 'numero_juventud_valoracion_integral',
+                          'numero_juventud_valoracion_integral_24_28', 'numero_juventud_valoracion_integral_18_23',
+                          'numero_adultos', 'numero_adultos_valoracion_integral_29_44',
+                          'numero_adultos_valoracion_integral_45_59', 'numero_adultos_valoracion_integral_29_59',
+                          'numero_vejez', 'numero_valoracion_integral_vejez',
+                          'numero_mujeres_28_66', 'numero_mujeres_tamizaje_cuello',
+                          'numero_mujeres_52_70', 'numero_mujeres_tamizaje_mamografia',
+                          'numero_hombres_55_76', 'numero_tamizaje_prostata',
+                          'numero_consulta_primeravez_prenatal', 'numero_a_consejeria_vih_y_sifilis',
+                          'numero_vih', 'numero_sifilis', 'numero_preconcepcional',
+                          'poblacion_vulnerable', 'proyectado_microterritorio','grupo_ebs']
+
+    matriz = matriz[columnas_ordenadas]
+
+
 
     print(matriz_microterritorios.head())
 
